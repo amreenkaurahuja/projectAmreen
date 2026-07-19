@@ -1,30 +1,29 @@
+import Link from "next/link";
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center px-6 py-16">
-      <p className="mb-3 text-sm font-medium tracking-wide text-violet-700 uppercase">
-        Phase 0 foundation
-      </p>
-      <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-        Project Amreen
-      </h1>
-      <p className="mt-5 max-w-2xl text-lg text-slate-600">
-        The repository, environments, Supabase boundary, continuous integration,
-        and automated testing foundation are ready for the learner platform.
-      </p>
-      <section className="mt-10 grid gap-4 sm:grid-cols-2">
-        {[
-          "Next.js and strict TypeScript",
-          "Supabase SSR client boundary",
-          "Vitest unit testing",
-          "Playwright end-to-end testing",
-          "GitHub Actions quality gate",
-          "Environment and health checks",
-        ].map((item) => (
-          <div key={item} className="rounded-2xl border border-slate-200 p-4">
-            <span aria-hidden="true">✓ </span>
-            {item}
-          </div>
-        ))}
+    <main className="mx-auto flex min-h-screen max-w-4xl items-center px-6 py-16">
+      <section>
+        <p className="text-sm font-medium tracking-wide uppercase">
+          Project Amreen
+        </p>
+        <h1 className="mt-3 max-w-2xl text-4xl font-semibold">
+          A private, adaptive learning foundation built one reliable phase at a
+          time.
+        </h1>
+        <p className="mt-5 max-w-xl text-neutral-600">
+          Phase 1 provides secure parent authentication and learner profiles.
+        </p>
+        <div className="mt-8 flex gap-3">
+          <Link
+            href="/signup"
+            className="rounded-xl bg-black px-5 py-3 text-white"
+          >
+            Create parent account
+          </Link>
+          <Link href="/login" className="rounded-xl border px-5 py-3">
+            Sign in
+          </Link>
+        </div>
       </section>
     </main>
   );
