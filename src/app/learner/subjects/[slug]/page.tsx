@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/require-user";
 import { getCurriculumSubject } from "@/lib/curriculum/catalogue";
 import { createClient } from "@/lib/supabase/server";
@@ -11,11 +11,22 @@ export default async function SubjectPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ learner?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const [{ slug }, { learner }] = await Promise.all([params, searchParams]);
-  if (!learner) notFound();
-
   const supabase = await createClient();
+
+  if (!learner) {
+    const { data: firstLearner } = await supabase
+      .from("learners")
+      .select("id")
+      .eq("parent_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!firstLearner) redirect("/parent/learners/new");
+    redirect(`/learner/subjects/${slug}?learner=${firstLearner.id}`);
+  }
   const [{ data: learnerProfile }, subject] = await Promise.all([
     supabase
       .from("learners")
