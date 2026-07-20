@@ -1,30 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { getInitialMissionIndex } from "@/lib/missions/resume";
-import type { DailyMission } from "@/lib/missions/types";
+import { getInitialMissionIndex } from "@/modules/missions/resume";
+import type { MissionPlayer } from "@/modules/missions/mission-player.types";
 
-function buildMission(answeredCount: number): DailyMission {
+function buildMission(answeredCount: number): MissionPlayer {
   const questions = Array.from({ length: 16 }, (_, index) => ({
     missionItemId: `item-${index}`,
     questionId: `question-${index}`,
+    position: index + 1,
     subjectName: "Mathematics",
     subjectSlug: "mathematics",
+    topicName: null,
     prompt: `Question ${index + 1}`,
-    explanation: "Explanation",
-    difficulty: 1,
     options: [{ id: `option-${index}`, label: "Option" }],
-    answeredOptionId: index < answeredCount ? `option-${index}` : null,
-    isCorrect: index < answeredCount ? true : null,
+    attempt:
+      index < answeredCount
+        ? {
+            selectedOptionId: `option-${index}`,
+            correctOptionId: `option-${index}`,
+            isCorrect: true,
+            explanation: "Explanation",
+            responseMs: 1000,
+          }
+        : null,
   }));
 
   return {
-    id: "mission-1",
+    missionId: "mission-1",
     learnerId: "learner-1",
-    missionDate: "2024-01-01",
+    missionDate: "2026-07-20",
     status: "in_progress",
     estimatedMinutes: 20,
+    completedAt: null,
     totalQuestions: 16,
-    answeredQuestions: answeredCount,
-    correctAnswers: answeredCount,
+    answeredCount,
+    correctCount: answeredCount,
     questions,
   };
 }
