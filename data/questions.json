@@ -1,0 +1,852 @@
+[
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "arithmetic",
+    "prompt": "What is 245 + 378?",
+    "explanation": "245 + 378 = 623.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "623",
+        "isCorrect": true
+      },
+      {
+        "label": "613",
+        "isCorrect": false
+      },
+      {
+        "label": "633",
+        "isCorrect": false
+      },
+      {
+        "label": "643",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "arithmetic",
+    "prompt": "What is 900 - 467?",
+    "explanation": "900 - 467 = 433.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "433",
+        "isCorrect": true
+      },
+      {
+        "label": "423",
+        "isCorrect": false
+      },
+      {
+        "label": "443",
+        "isCorrect": false
+      },
+      {
+        "label": "533",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "arithmetic",
+    "prompt": "What is 24 × 7?",
+    "explanation": "24 × 7 = 168.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "168",
+        "isCorrect": true
+      },
+      {
+        "label": "148",
+        "isCorrect": false
+      },
+      {
+        "label": "158",
+        "isCorrect": false
+      },
+      {
+        "label": "178",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "arithmetic",
+    "prompt": "What is 864 ÷ 8?",
+    "explanation": "864 divided by 8 is 108.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "108",
+        "isCorrect": true
+      },
+      {
+        "label": "98",
+        "isCorrect": false
+      },
+      {
+        "label": "106",
+        "isCorrect": false
+      },
+      {
+        "label": "118",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "number-and-place-value",
+    "prompt": "Which number is greatest?",
+    "explanation": "5,405 is greater than 5,045, 5,450 and 5,054? Check carefully: 5,450 is greatest.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "5,450",
+        "isCorrect": true
+      },
+      {
+        "label": "5,405",
+        "isCorrect": false
+      },
+      {
+        "label": "5,045",
+        "isCorrect": false
+      },
+      {
+        "label": "5,054",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "number-and-place-value",
+    "prompt": "What is the value of the 7 in 47,219?",
+    "explanation": "The 7 is in the thousands place, so its value is 7,000.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "7,000",
+        "isCorrect": true
+      },
+      {
+        "label": "700",
+        "isCorrect": false
+      },
+      {
+        "label": "70",
+        "isCorrect": false
+      },
+      {
+        "label": "70,000",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "arithmetic",
+    "prompt": "What is 3/4 of 60?",
+    "explanation": "60 ÷ 4 × 3 = 45.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "45",
+        "isCorrect": true
+      },
+      {
+        "label": "15",
+        "isCorrect": false
+      },
+      {
+        "label": "30",
+        "isCorrect": false
+      },
+      {
+        "label": "50",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "arithmetic",
+    "prompt": "Which decimal is equal to 3/10?",
+    "explanation": "Three tenths is written as 0.3.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "0.3",
+        "isCorrect": true
+      },
+      {
+        "label": "0.03",
+        "isCorrect": false
+      },
+      {
+        "label": "3.0",
+        "isCorrect": false
+      },
+      {
+        "label": "0.003",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "problem-solving",
+    "prompt": "A book costs £7.50. How much do 4 books cost?",
+    "explanation": "£7.50 × 4 = £30.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "£30",
+        "isCorrect": true
+      },
+      {
+        "label": "£28",
+        "isCorrect": false
+      },
+      {
+        "label": "£29.50",
+        "isCorrect": false
+      },
+      {
+        "label": "£32",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "geometry-and-measures",
+    "prompt": "A rectangle is 8 cm long and 5 cm wide. What is its perimeter?",
+    "explanation": "Perimeter = 8 + 5 + 8 + 5 = 26 cm.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "26 cm",
+        "isCorrect": true
+      },
+      {
+        "label": "13 cm",
+        "isCorrect": false
+      },
+      {
+        "label": "40 cm",
+        "isCorrect": false
+      },
+      {
+        "label": "25 cm",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "geometry-and-measures",
+    "prompt": "How many degrees are in a right angle?",
+    "explanation": "A right angle is 90 degrees.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "90°",
+        "isCorrect": true
+      },
+      {
+        "label": "45°",
+        "isCorrect": false
+      },
+      {
+        "label": "180°",
+        "isCorrect": false
+      },
+      {
+        "label": "360°",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "mathematics",
+    "topicSlug": "problem-solving",
+    "prompt": "A train leaves at 09:35 and arrives at 11:05. How long is the journey?",
+    "explanation": "From 09:35 to 10:35 is 1 hour, then 30 minutes to 11:05: 1 hour 30 minutes.",
+    "difficulty": 3,
+    "options": [
+      {
+        "label": "1 hour 30 minutes",
+        "isCorrect": true
+      },
+      {
+        "label": "1 hour 20 minutes",
+        "isCorrect": false
+      },
+      {
+        "label": "1 hour 40 minutes",
+        "isCorrect": false
+      },
+      {
+        "label": "2 hours 30 minutes",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "vocabulary",
+    "prompt": "Which word is closest in meaning to “rapid”?",
+    "explanation": "Rapid means fast or quick.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "quick",
+        "isCorrect": true
+      },
+      {
+        "label": "quiet",
+        "isCorrect": false
+      },
+      {
+        "label": "rough",
+        "isCorrect": false
+      },
+      {
+        "label": "rare",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "vocabulary",
+    "prompt": "Which word is the opposite of “scarce”?",
+    "explanation": "Scarce means limited; abundant means plentiful.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "abundant",
+        "isCorrect": true
+      },
+      {
+        "label": "tiny",
+        "isCorrect": false
+      },
+      {
+        "label": "hidden",
+        "isCorrect": false
+      },
+      {
+        "label": "fragile",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "grammar-and-punctuation",
+    "prompt": "Choose the sentence with correct punctuation.",
+    "explanation": "A comma follows the introductory phrase, and the sentence ends with a full stop.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "After lunch, we visited the museum.",
+        "isCorrect": true
+      },
+      {
+        "label": "After lunch we visited, the museum.",
+        "isCorrect": false
+      },
+      {
+        "label": "After lunch we visited the museum",
+        "isCorrect": false
+      },
+      {
+        "label": "after lunch, we visited the museum.",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "grammar-and-punctuation",
+    "prompt": "Which word is an adverb in: “The athlete ran swiftly”?",
+    "explanation": "Swiftly describes how the athlete ran, so it is an adverb.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "swiftly",
+        "isCorrect": true
+      },
+      {
+        "label": "athlete",
+        "isCorrect": false
+      },
+      {
+        "label": "ran",
+        "isCorrect": false
+      },
+      {
+        "label": "the",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "reading-comprehension",
+    "prompt": "“Maya clutched her umbrella as dark clouds gathered.” What can we infer?",
+    "explanation": "The dark clouds and umbrella suggest that Maya expects rain.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "She expects it to rain.",
+        "isCorrect": true
+      },
+      {
+        "label": "She has lost her umbrella.",
+        "isCorrect": false
+      },
+      {
+        "label": "It is very sunny.",
+        "isCorrect": false
+      },
+      {
+        "label": "She is going swimming.",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "vocabulary",
+    "prompt": "Choose the best word: “The scientist made a ___ observation.”",
+    "explanation": "A careful observation is precise and thorough.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "careful",
+        "isCorrect": true
+      },
+      {
+        "label": "careless",
+        "isCorrect": false
+      },
+      {
+        "label": "noisy",
+        "isCorrect": false
+      },
+      {
+        "label": "hungry",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "grammar-and-punctuation",
+    "prompt": "Which sentence uses an apostrophe correctly?",
+    "explanation": "The apostrophe shows that the bicycle belongs to one girl.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "The girl's bicycle was red.",
+        "isCorrect": true
+      },
+      {
+        "label": "The girls bicycle was red.",
+        "isCorrect": false
+      },
+      {
+        "label": "The girls' bicycle was red.",
+        "isCorrect": false
+      },
+      {
+        "label": "The girl,s bicycle was red.",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "reading-comprehension",
+    "prompt": "What is the purpose of a heading in an information text?",
+    "explanation": "A heading tells the reader what the following section is about.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "To show what a section is about",
+        "isCorrect": true
+      },
+      {
+        "label": "To end the text",
+        "isCorrect": false
+      },
+      {
+        "label": "To replace all punctuation",
+        "isCorrect": false
+      },
+      {
+        "label": "To list every source",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "vocabulary",
+    "prompt": "Which word best completes: “The ancient vase was extremely ___, so we handled it gently.”",
+    "explanation": "Fragile means easily broken.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "fragile",
+        "isCorrect": true
+      },
+      {
+        "label": "enormous",
+        "isCorrect": false
+      },
+      {
+        "label": "ordinary",
+        "isCorrect": false
+      },
+      {
+        "label": "cheerful",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "english",
+    "topicSlug": "grammar-and-punctuation",
+    "prompt": "Which is a complex sentence?",
+    "explanation": "It contains a main clause and a subordinate clause beginning with “because”.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "I stayed inside because it was raining.",
+        "isCorrect": true
+      },
+      {
+        "label": "I stayed inside.",
+        "isCorrect": false
+      },
+      {
+        "label": "Rain fell and wind blew.",
+        "isCorrect": false
+      },
+      {
+        "label": "Inside the house.",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "verbal-reasoning",
+    "topicSlug": "word-relationships",
+    "prompt": "Bird is to nest as bee is to ___.",
+    "explanation": "A bird lives in a nest; a bee lives in a hive.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "hive",
+        "isCorrect": true
+      },
+      {
+        "label": "web",
+        "isCorrect": false
+      },
+      {
+        "label": "den",
+        "isCorrect": false
+      },
+      {
+        "label": "stable",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "verbal-reasoning",
+    "topicSlug": "word-relationships",
+    "prompt": "Which word does not belong: apple, pear, carrot, plum?",
+    "explanation": "Carrot is a vegetable; the others are fruits.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "carrot",
+        "isCorrect": true
+      },
+      {
+        "label": "apple",
+        "isCorrect": false
+      },
+      {
+        "label": "pear",
+        "isCorrect": false
+      },
+      {
+        "label": "plum",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "verbal-reasoning",
+    "topicSlug": "letter-and-number-codes",
+    "prompt": "If CAT becomes DBU, what does DOG become?",
+    "explanation": "Each letter moves forward by one: D→E, O→P, G→H.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "EPH",
+        "isCorrect": true
+      },
+      {
+        "label": "EOG",
+        "isCorrect": false
+      },
+      {
+        "label": "CPH",
+        "isCorrect": false
+      },
+      {
+        "label": "FQI",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "verbal-reasoning",
+    "topicSlug": "word-building",
+    "prompt": "Which word can be made by adding one letter to “plan”?",
+    "explanation": "Adding e makes plane.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "plane",
+        "isCorrect": true
+      },
+      {
+        "label": "plainly",
+        "isCorrect": false
+      },
+      {
+        "label": "planet",
+        "isCorrect": false
+      },
+      {
+        "label": "planting",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "verbal-reasoning",
+    "topicSlug": "verbal-logic",
+    "prompt": "All roses are flowers. Some flowers fade quickly. Which statement must be true?",
+    "explanation": "The first statement directly tells us that every rose is a flower.",
+    "difficulty": 3,
+    "options": [
+      {
+        "label": "All roses are flowers.",
+        "isCorrect": true
+      },
+      {
+        "label": "All flowers are roses.",
+        "isCorrect": false
+      },
+      {
+        "label": "No roses fade.",
+        "isCorrect": false
+      },
+      {
+        "label": "Every flower fades quickly.",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "verbal-reasoning",
+    "topicSlug": "word-relationships",
+    "prompt": "Complete the pair: hot : cold :: ancient : ___.",
+    "explanation": "Hot and cold are opposites; ancient and modern are opposites.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "modern",
+        "isCorrect": true
+      },
+      {
+        "label": "historic",
+        "isCorrect": false
+      },
+      {
+        "label": "old",
+        "isCorrect": false
+      },
+      {
+        "label": "ruined",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "non-verbal-reasoning",
+    "topicSlug": "shape-sequences",
+    "prompt": "A shape turns 90° clockwise each step. After four turns, where will it face?",
+    "explanation": "Four quarter-turns make one full turn, so it faces the original direction.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "The original direction",
+        "isCorrect": true
+      },
+      {
+        "label": "90° clockwise",
+        "isCorrect": false
+      },
+      {
+        "label": "180° around",
+        "isCorrect": false
+      },
+      {
+        "label": "90° anticlockwise",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "non-verbal-reasoning",
+    "topicSlug": "spatial-reasoning",
+    "prompt": "Which transformation produces a mirror image?",
+    "explanation": "Reflection creates a mirror image.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "Reflection",
+        "isCorrect": true
+      },
+      {
+        "label": "Rotation",
+        "isCorrect": false
+      },
+      {
+        "label": "Enlargement",
+        "isCorrect": false
+      },
+      {
+        "label": "Translation",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "non-verbal-reasoning",
+    "topicSlug": "matrices",
+    "prompt": "In each row, the number of dots increases by one. A row starts with 2 dots, then 3 dots. What comes next?",
+    "explanation": "The pattern adds one dot each time, so 4 dots come next.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "4 dots",
+        "isCorrect": true
+      },
+      {
+        "label": "1 dot",
+        "isCorrect": false
+      },
+      {
+        "label": "3 dots",
+        "isCorrect": false
+      },
+      {
+        "label": "5 dots",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "non-verbal-reasoning",
+    "topicSlug": "analogies",
+    "prompt": "A white circle changes to a black circle. Apply the same rule to a white square.",
+    "explanation": "Only the shading changes, so the result is a black square.",
+    "difficulty": 2,
+    "options": [
+      {
+        "label": "A black square",
+        "isCorrect": true
+      },
+      {
+        "label": "A white circle",
+        "isCorrect": false
+      },
+      {
+        "label": "A black triangle",
+        "isCorrect": false
+      },
+      {
+        "label": "A larger white square",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "non-verbal-reasoning",
+    "topicSlug": "shape-sequences",
+    "prompt": "The pattern is triangle, square, triangle, square. What comes next?",
+    "explanation": "The two shapes alternate, so triangle comes next.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "triangle",
+        "isCorrect": true
+      },
+      {
+        "label": "square",
+        "isCorrect": false
+      },
+      {
+        "label": "circle",
+        "isCorrect": false
+      },
+      {
+        "label": "pentagon",
+        "isCorrect": false
+      }
+    ]
+  },
+  {
+    "subjectSlug": "non-verbal-reasoning",
+    "topicSlug": "spatial-reasoning",
+    "prompt": "An arrow points up. It is rotated 180°. Which way does it point?",
+    "explanation": "A half-turn changes up to down.",
+    "difficulty": 1,
+    "options": [
+      {
+        "label": "down",
+        "isCorrect": true
+      },
+      {
+        "label": "left",
+        "isCorrect": false
+      },
+      {
+        "label": "right",
+        "isCorrect": false
+      },
+      {
+        "label": "up",
+        "isCorrect": false
+      }
+    ]
+  }
+]

@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/require-user";
 import { getCurriculumSubjects } from "@/lib/curriculum/catalogue";
 import { createClient } from "@/lib/supabase/server";
+import { SupabaseMissionRepository } from "@/modules/missions/mission.repository";
+import { MissionService } from "@/modules/missions/mission.service";
 
 export default async function LearnerDashboard({
   searchParams,
@@ -13,7 +15,8 @@ export default async function LearnerDashboard({
   const { learner } = await searchParams;
   const supabase = await createClient();
 
-  if (!learner) {
+  let learnerId = learner;
+  if (!learnerId) {
     const { data: firstLearner } = await supabase
       .from("learners")
       .select("id")
@@ -23,20 +26,26 @@ export default async function LearnerDashboard({
       .maybeSingle();
 
     if (!firstLearner) redirect("/parent/learners/new");
-    redirect(`/learner/dashboard?learner=${firstLearner.id}`);
+    learnerId = firstLearner.id;
+    redirect(`/learner/dashboard?learner=${learnerId}`);
   }
-  const [{ data: profile }, subjects, { data: progressRows }] =
+
+  const repository = new SupabaseMissionRepository(supabase as never);
+  const missionService = new MissionService(repository);
+
+  const [{ data: profile }, subjects, { data: progressRows }, mission] =
     await Promise.all([
       supabase
         .from("learners")
         .select("id,display_name,school_year,exam_target")
-        .eq("id", learner)
+        .eq("id", learnerId)
         .single(),
       getCurriculumSubjects(),
       supabase
         .from("learner_subject_progress")
         .select("subject_id,progress_percent,skills_mastered")
-        .eq("learner_id", learner),
+        .eq("learner_id", learnerId),
+      missionService.getOrCreateTodaysMission(learnerId),
     ]);
 
   if (!profile) notFound();
@@ -52,6 +61,9 @@ export default async function LearnerDashboard({
           0,
         ) / subjects.length,
       )
+    : 0;
+  const progressPercent = mission.questionCount
+    ? Math.round((mission.answeredCount / mission.questionCount) * 100)
     : 0;
 
   return (
@@ -85,11 +97,24 @@ export default async function LearnerDashboard({
         <p className="text-sm font-medium tracking-wide text-neutral-400 uppercase">
           Today&apos;s mission
         </p>
-        <h2 className="mt-2 text-xl font-semibold">Curriculum ready</h2>
+        <h2 className="mt-2 text-2xl font-semibold">
+          {mission.questionCount} questions · about {mission.estimatedMinutes}{" "}
+          minutes
+        </h2>
         <p className="mt-2 max-w-2xl text-neutral-300">
-          Explore your subjects and skills now. Personalised mission planning is
-          introduced in Phase 3.
+          {mission.answeredCount} answered · {progressPercent}% complete
         </p>
+        <Link
+          href={`/learner/mission?learner=${profile.id}&mission=${mission.missionId}`}
+          className="mt-5 inline-block rounded-xl bg-white px-5 py-3 font-semibold text-neutral-950"
+        >
+          {mission.answeredCount === 0
+            ? "Start Mission"
+            : mission.status === "completed"
+              ? "Review Mission"
+              : "Resume Mission"}{" "}
+          →
+        </Link>
       </section>
 
       <section className="mt-9">
