@@ -200,6 +200,19 @@ export class SupabaseMissionPlayerRepository implements MissionPlayerRepository 
       );
     }
 
+    console.error(
+      "[DIAGNOSTIC getMissionItems]",
+      JSON.stringify({
+        missionId,
+        rowCount: (data ?? []).length,
+        rows: ((data ?? []) as unknown as RawMissionItemRow[]).map((row) => ({
+          id: row.id,
+          position: row.position,
+          question_attempts: row.question_attempts,
+        })),
+      }),
+    );
+
     return ((data ?? []) as unknown as RawMissionItemRow[]).map((row) => {
       const question = row.question_bank;
       const attempt = row.question_attempts?.[0] ?? null;
