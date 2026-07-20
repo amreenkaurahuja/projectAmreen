@@ -102,7 +102,10 @@ interface RawMissionItemRow {
   id: string;
   position: number;
   question_bank: RawQuestionRow;
-  question_attempts: RawAttemptRow[] | null;
+}
+
+interface RawAttemptWithItemRow extends RawAttemptRow {
+  mission_item_id: string;
 }
 
 interface RawGradingRow {
@@ -187,8 +190,7 @@ export class SupabaseMissionPlayerRepository implements MissionPlayerRepository 
           subjects!inner(name,slug),
           topics(name),
           question_options(id,label,is_correct,sort_order)
-        ),
-        question_attempts(selected_option_id,is_correct,response_ms)
+        )
       `,
       )
       .eq("mission_id", missionId)
@@ -200,22 +202,39 @@ export class SupabaseMissionPlayerRepository implements MissionPlayerRepository 
       );
     }
 
-    console.error(
-      "[DIAGNOSTIC getMissionItems]",
-      JSON.stringify({
-        missionId,
-        rowCount: (data ?? []).length,
-        rows: ((data ?? []) as unknown as RawMissionItemRow[]).map((row) => ({
-          id: row.id,
-          position: row.position,
-          question_attempts: row.question_attempts,
-        })),
-      }),
+    const rows = (data ?? []) as unknown as RawMissionItemRow[];
+    const itemIds = rows.map((row) => row.id);
+
+    // Fetched as a separate query rather than embedded under mission_items:
+    // PostgREST's generated SQL for a to-many embed through this table's RLS
+    // policy does not resolve the same way a flat join does, and silently
+    // returns an empty embed even for attempts the policy legitimately
+    // grants access to. A direct query against question_attempts does not
+    // hit that issue.
+    const { data: attemptRows, error: attemptsError } =
+      itemIds.length === 0
+        ? { data: [] as RawAttemptWithItemRow[], error: null }
+        : await this.supabase
+            .from("question_attempts")
+            .select("mission_item_id,selected_option_id,is_correct,response_ms")
+            .in("mission_item_id", itemIds);
+
+    if (attemptsError) {
+      throw new MissionRepositoryError(
+        `Unable to load mission attempts: ${attemptsError.message}`,
+      );
+    }
+
+    const attemptsByItemId = new Map<string, RawAttemptRow>(
+      ((attemptRows ?? []) as RawAttemptWithItemRow[]).map((attempt) => [
+        attempt.mission_item_id,
+        attempt,
+      ]),
     );
 
-    return ((data ?? []) as unknown as RawMissionItemRow[]).map((row) => {
+    return rows.map((row) => {
       const question = row.question_bank;
-      const attempt = row.question_attempts?.[0] ?? null;
+      const attempt = attemptsByItemId.get(row.id) ?? null;
 
       return {
         missionItemId: row.id,
