@@ -82,5 +82,39 @@ export default async function MissionPage({
   // recompute or default this to 0.
   const initialIndex = getInitialMissionIndex(mission);
 
-  return <MissionPlayer initialMission={mission} initialIndex={initialIndex} />;
+  return (
+    <>
+      <pre
+        style={{
+          fontSize: 11,
+          background: "#111",
+          color: "#0f0",
+          padding: 12,
+          overflowX: "auto",
+          margin: 0,
+        }}
+      >
+        {JSON.stringify(
+          {
+            missionId: mission.missionId,
+            answeredCount: mission.answeredCount,
+            initialIndex,
+            item1: {
+              missionItemId: mission.questions[0]?.missionItemId,
+              position: mission.questions[0]?.position,
+              attempt: mission.questions[0]?.attempt,
+            },
+            item2: {
+              missionItemId: mission.questions[1]?.missionItemId,
+              position: mission.questions[1]?.position,
+              attempt: mission.questions[1]?.attempt,
+            },
+          },
+          null,
+          2,
+        )}
+      </pre>
+      <MissionPlayer initialMission={mission} initialIndex={initialIndex} />
+    </>
+  );
 }
