@@ -7,6 +7,7 @@ All routes live under `src/app/api/**` (Next.js Route Handlers) plus one non-`/a
 - Ownership (does this learner/mission belong to the caller?) is enforced server-side, never trusted from the client; violation → **403**.
 - Referencing a mission/item that doesn't exist for that learner → **404**.
 - Unexpected failures → **500** with a generic `{ "error": "Internal server error" }` body — no stack traces or internals in the response.
+- Every response carries an `x-request-id` header (reused from the request's own `x-request-id` if the caller sent one, otherwise generated). See "Observability" below.
 
 ## `GET /api/health`
 
@@ -115,10 +116,19 @@ Auth required. Returns only the **incorrectly answered** questions (prompt, the 
 
 Not under `/api`. Supabase OAuth/magic-link redirect target — exchanges `code` for a session, then redirects to `/parent/dashboard`. No JSON response.
 
+## Observability
+
+Every `/api/**` route is exported wrapped in `withApiObservability(routeName, handler)` (`src/lib/observability/api.ts`):
+
+- **Request IDs**: reused from an incoming `x-request-id` request header if present, otherwise generated with `crypto.randomUUID()`. Always echoed back on the response's `x-request-id` header and passed as the wrapped handler's third argument, so route code can include it in its own log lines.
+- **Structured logging**: `src/lib/observability/logger.ts` writes single-line JSON (`timestamp`, `level`, `message`, plus whatever context is passed) via `console.log`/`warn`/`error`. The wrapper itself logs `api.request.started` and `api.request.completed` (with status code and duration) for every request, regardless of outcome.
+- **Sentry**: initialized in `src/instrumentation.ts` (server) and `src/instrumentation-client.ts` (browser) — both are safe no-ops if `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` aren't set (see `docs/ENVIRONMENTS.md`). The wrapper's own `catch` reports anything that escapes a route handler's internal error handling to `Sentry.captureException`, tagged with `request_id` and `route`. Known 4xx outcomes (401/403/404/etc.) are **not** sent to Sentry — only genuinely unexpected failures are, matching each route's existing generic-500 branch.
+
 ## Conventions for adding a new route
 
 1. Zod-validate every path/query param that should be a UUID before touching Supabase (Postgrest throws a hard error on malformed UUID input otherwise).
-2. Build the client via `createClient()` from `@/lib/supabase/server`, check `auth.getUser()`, `401` if absent.
-3. Construct `new Supabase<X>Repository(supabase)` → `new <X>Service(repository)`, call the service inside `try/catch`.
-4. Map `MissionAccessError → 403`, `*NotFoundError → 404`, anything else → generic `500` (log server-side with `console.error`, never echo the raw error to the client).
-5. Never read `SUPABASE_SERVICE_ROLE_KEY` from a route handler — it isn't available to the running app and shouldn't be (see `docs/Database.md`).
+2. Wrap the exported handler in `withApiObservability("<METHOD> <path>", async (request, context, requestId) => { ... })`.
+3. Build the client via `createClient()` from `@/lib/supabase/server`, check `auth.getUser()`, `401` if absent.
+4. Construct `new Supabase<X>Repository(supabase)` → `new <X>Service(repository)`, call the service inside `try/catch`.
+5. Map `MissionAccessError → 403`, `*NotFoundError → 404`, anything else → generic `500`. In that final branch, call `Sentry.captureException(error, { tags: { request_id: requestId, route: "<METHOD> <path>" } })` and `logger.error(...)` before returning the response — never echo the raw error to the client.
+6. Never read `SUPABASE_SERVICE_ROLE_KEY` from a route handler — it isn't available to the running app and shouldn't be (see `docs/Database.md`).

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -11,6 +12,8 @@ import {
 } from "@/modules/missions/mission-player.service";
 import { SupabaseMissionPlayerRepository } from "@/modules/missions/mission-player.repository";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/observability/logger";
+import { withApiObservability } from "@/lib/observability/api";
 
 const paramsSchema = z.object({
   missionId: z.string().uuid(),
@@ -23,10 +26,11 @@ const bodySchema = z.object({
   responseMs: z.number().int().min(0).max(3_600_000).optional().default(0),
 });
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ missionId: string }> },
-) {
+const ROUTE_NAME = "POST /api/missions/[missionId]/attempts";
+
+export const POST = withApiObservability<{
+  params: Promise<{ missionId: string }>;
+}>(ROUTE_NAME, async (request, { params }, requestId) => {
   const parsedParams = paramsSchema.safeParse(await params);
   if (!parsedParams.success) {
     return NextResponse.json({ error: "Invalid mission id" }, { status: 400 });
@@ -85,10 +89,16 @@ export async function POST(
       return NextResponse.json({ error: "Invalid option" }, { status: 400 });
     }
 
-    console.error("Failed to record mission attempt", error);
+    Sentry.captureException(error, {
+      tags: { request_id: requestId, route: ROUTE_NAME },
+    });
+    logger.error("api.missions.attempts.failed", {
+      requestId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
     );
   }
-}
+});
