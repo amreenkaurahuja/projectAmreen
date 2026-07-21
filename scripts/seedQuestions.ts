@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { getSeedEnv } from "./env";
 
 const optionSchema = z.object({
   label: z.string().min(1).max(500),
@@ -28,18 +29,15 @@ const questionsSchema = z.array(questionSchema).min(1);
 
 type Question = z.infer<typeof questionSchema>;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const seedEnv = getSeedEnv();
 
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error(
-    "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Add both to .env.local before running the seed.",
-  );
-}
-
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const supabase = createClient(
+  seedEnv.NEXT_PUBLIC_SUPABASE_URL,
+  seedEnv.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: { persistSession: false, autoRefreshToken: false },
+  },
+);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const questionsPath = resolve(here, "../data/questions.json");

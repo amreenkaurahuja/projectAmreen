@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { z } from "zod";
 import { requireUser } from "@/lib/auth/require-user";
 import { getCurriculumSubject } from "@/lib/curriculum/catalogue";
 import { createClient } from "@/lib/supabase/server";
+
+const learnerIdSchema = z.string().uuid();
 
 export default async function SubjectPage({
   params,
@@ -27,6 +30,8 @@ export default async function SubjectPage({
     if (!firstLearner) redirect("/parent/learners/new");
     redirect(`/learner/subjects/${slug}?learner=${firstLearner.id}`);
   }
+  if (!learnerIdSchema.safeParse(learner).success) notFound();
+
   const [{ data: learnerProfile }, subject] = await Promise.all([
     supabase
       .from("learners")

@@ -10,6 +10,8 @@ export class MissionDuplicateError extends MissionRepositoryError {}
 
 export class MissionQuestionBankError extends MissionRepositoryError {}
 
+export class MissionNotFoundError extends MissionRepositoryError {}
+
 export interface MissionRepository {
   getAuthenticatedUserId(): Promise<string>;
   ensureLearnerOwned(learnerId: string): Promise<void>;

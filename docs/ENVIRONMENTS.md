@@ -23,4 +23,4 @@ Production secrets live only in Vercel/Supabase secret stores. Never commit `.en
 - `NEXT_PUBLIC_APP_URL`
 - `APP_ENV`
 
-`SUPABASE_SERVICE_ROLE_KEY` is intentionally optional and must only be used in server-only modules where elevated access is approved.
+`SUPABASE_SERVICE_ROLE_KEY` is **not** consumed by the Next.js runtime — it is required only by the local `scripts/seedQuestions.ts` question-seeding script (validated separately in `scripts/env.ts`) and must never be set in Vercel project environment variables.

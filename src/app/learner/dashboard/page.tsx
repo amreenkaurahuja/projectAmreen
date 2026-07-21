@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { z } from "zod";
 import { requireUser } from "@/lib/auth/require-user";
 import { getCurriculumSubjects } from "@/lib/curriculum/catalogue";
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseMissionRepository } from "@/modules/missions/mission.repository";
 import { MissionService } from "@/modules/missions/mission.service";
+
+const learnerIdSchema = z.string().uuid();
 
 export default async function LearnerDashboard({
   searchParams,
@@ -29,6 +32,12 @@ export default async function LearnerDashboard({
     learnerId = firstLearner.id;
     redirect(`/learner/dashboard?learner=${learnerId}`);
   }
+
+  // A malformed learner id (e.g. a hand-edited URL) must not reach Supabase:
+  // Postgrest rejects invalid UUID syntax with an error, and the mission
+  // service throws on that error, which would otherwise crash this page
+  // with an unhandled rejection inside the Promise.all below.
+  if (!learnerIdSchema.safeParse(learnerId).success) notFound();
 
   const repository = new SupabaseMissionRepository(supabase as never);
   const missionService = new MissionService(repository);
@@ -65,6 +74,10 @@ export default async function LearnerDashboard({
   const progressPercent = mission.questionCount
     ? Math.round((mission.answeredCount / mission.questionCount) * 100)
     : 0;
+  const missionAccuracy = mission.questionCount
+    ? Math.round((mission.correctCount / mission.questionCount) * 100)
+    : 0;
+  const missionComplete = mission.status === "completed";
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -102,15 +115,18 @@ export default async function LearnerDashboard({
           minutes
         </h2>
         <p className="mt-2 max-w-2xl text-neutral-300">
-          {mission.answeredCount} answered · {progressPercent}% complete
+          {missionComplete
+            ? `Mission complete · ${mission.correctCount}/${mission.questionCount} correct · ${missionAccuracy}% accuracy`
+            : `${mission.answeredCount} answered · ${progressPercent}% complete`}
         </p>
         <Link
           href={`/learner/mission?learner=${profile.id}&mission=${mission.missionId}`}
+          prefetch={false}
           className="mt-5 inline-block rounded-xl bg-white px-5 py-3 font-semibold text-neutral-950"
         >
           {mission.answeredCount === 0
             ? "Start Mission"
-            : mission.status === "completed"
+            : missionComplete
               ? "Review Mission"
               : "Resume Mission"}{" "}
           →
