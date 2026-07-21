@@ -49,7 +49,7 @@ Rules that follow from this:
 - Every `/api/**` route handler is exported wrapped in `withApiObservability("<METHOD> <path>", handler)` (`src/lib/observability/api.ts`) — request id assignment/propagation, structured start/completion logs, and a safety-net 500+Sentry-report for anything that escapes the route's own error handling all come from the wrapper, not from each route reimplementing it.
 - Use `logger.info/warn/error(message, context)` from `src/lib/observability/logger.ts` for structured logs — never a bare `console.log`. `message` should be a short, stable, dot-namespaced string (`api.missions.attempts.failed`), not a one-off sentence; put the variable detail in `context`.
 - Only report genuinely unexpected failures to Sentry (`Sentry.captureException`) — a route's own generic-500 branch is the right place, not its 400/401/403/404 branches. Sentry noise from expected client errors makes real regressions harder to spot.
-- `Sentry.init` in `src/instrumentation.ts`/`instrumentation-client.ts` is a safe no-op without `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` set — don't add code that assumes Sentry is actually configured (e.g. don't gate real functionality behind whether an event successfully sent).
+- `Sentry.init` in `src/instrumentation.ts`/`instrumentation-client.ts` only runs when `SENTRY_ENABLED`/`NEXT_PUBLIC_SENTRY_ENABLED` is explicitly `"true"` (`src/lib/observability/sentry-enablement.ts`) — a DSN alone doesn't turn it on. Don't add code that assumes Sentry is actually configured (e.g. don't gate real functionality behind whether an event successfully sent).
 
 ## Validation at boundaries
 
