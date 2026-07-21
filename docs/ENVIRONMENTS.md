@@ -27,5 +27,9 @@ Production secrets live only in Vercel/Supabase secret stores. Never commit `.en
 
 ## Optional variables
 
-- `SENTRY_DSN` — server-side error tracking (`src/instrumentation.ts`). Unset by default; Sentry is a safe no-op without it, so this is not required to build or run the app.
-- `NEXT_PUBLIC_SENTRY_DSN` — client-side error tracking (`src/instrumentation-client.ts`). Same no-op-if-unset behavior. This one is bundled into client-side JS like any other `NEXT_PUBLIC_*` variable, so treat the DSN itself as non-secret (Sentry DSNs are designed to be public) — the actual project access control lives in Sentry, not in keeping this value hidden.
+Sentry is prepared but **not fully integrated** — it stays inert until explicitly turned on, regardless of whether a DSN is set, via the `*_ENABLED` flags below. Neither is required to build or run the app.
+
+- `SENTRY_DSN` / `SENTRY_ENABLED` — server-side error tracking (`src/instrumentation.ts`). `Sentry.init` only runs when `SENTRY_ENABLED=true`.
+- `NEXT_PUBLIC_SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_ENABLED` — client-side error tracking (`src/instrumentation-client.ts`), same gating via `NEXT_PUBLIC_SENTRY_ENABLED=true`. Both `NEXT_PUBLIC_*` values are bundled into client-side JS like any other `NEXT_PUBLIC_*` variable — treat the DSN itself as non-secret (Sentry DSNs are designed to be public); the actual project access control lives in Sentry, not in keeping this value hidden.
+
+See `docs/Architecture.md` → "Observability" for the full picture, and `src/lib/observability/sentry-enablement.ts` for the gating logic.
