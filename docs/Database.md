@@ -1,6 +1,6 @@
 # Database
 
-Postgres via Supabase. Schema lives entirely in `supabase/migrations/*.sql`, applied in order — that directory is the source of truth; this document is a readable summary of it as of migration `0008_backfill_question_skill.sql`.
+Postgres via Supabase. Schema lives entirely in `supabase/migrations/*.sql`, applied in order — that directory is the source of truth; this document is a readable summary of it as of migration `0009_phase5_adaptive_missions.sql`.
 
 Every table has Row Level Security **enabled**, and every policy is scoped through `auth.uid()` back to the owning parent. There is no table a signed-in user can read or write without an ownership chain back to their own `auth.uid()`, except the shared read-only curriculum catalogue (`subjects`, `topics`, `skills`, `learning_objectives`, `question_bank`, `question_options`), which any authenticated user can read.
 
@@ -95,35 +95,38 @@ The pool of exam-style questions missions are generated from.
 Index: `question_bank_subject_idx` on `(subject_id) where is_active`.
 RLS: any authenticated user may read active questions / options for active questions. Seeded separately via `npm run seed:questions` (`scripts/seedQuestions.ts`), not by a migration.
 
-### `missions` (0004)
+### `missions` (0004; `generation_strategy`/`generation_metadata` added in 0009)
 
 One daily mission per learner per day.
 
-| column                      | type                    | notes                                   |
-| --------------------------- | ----------------------- | --------------------------------------- |
-| `id`                        | `uuid` PK               |                                         |
-| `learner_id`                | `uuid` → `learners(id)` | `on delete cascade`                     |
-| `mission_date`              | `date`                  | default `current_date`                  |
-| `status`                    | `text`                  | `ready` \| `in_progress` \| `completed` |
-| `estimated_minutes`         | `smallint`              | 1–180, default 20                       |
-| `completed_at`              | `timestamptz`           | nullable                                |
-| `created_at` / `updated_at` | `timestamptz`           |                                         |
+| column                      | type                    | notes                                                                                                                    |
+| --------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `id`                        | `uuid` PK               |                                                                                                                          |
+| `learner_id`                | `uuid` → `learners(id)` | `on delete cascade`                                                                                                      |
+| `mission_date`              | `date`                  | default `current_date`                                                                                                   |
+| `status`                    | `text`                  | `ready` \| `in_progress` \| `completed`                                                                                  |
+| `estimated_minutes`         | `smallint`              | 1–180, default 20                                                                                                        |
+| `completed_at`              | `timestamptz`           | nullable                                                                                                                 |
+| `generation_strategy`       | `text`                  | nullable, e.g. `adaptive-v1`                                                                                             |
+| `generation_metadata`       | `jsonb`                 | default `{}` — candidate/selected counts, category counts, fallback count, capacity warning; never prompts/answers/names |
+| `created_at` / `updated_at` | `timestamptz`           |                                                                                                                          |
 
 Unique: `(learner_id, mission_date)` — this is what makes "get or create today's mission" safe under concurrent requests: the second `insert` hits the unique constraint (`23505`) and the app re-reads the winning row instead of erroring.
 Index: `missions_learner_date_idx` on `(learner_id, mission_date desc)`.
 RLS: single `for all` policy, `exists (learners where learners.id = learner_id and parent_id = auth.uid())`, both `using` and `with check`.
 
-### `mission_items` (0004)
+### `mission_items` (0004; `selection_reason` added in 0009)
 
 The 16 questions assigned to a specific mission, in order.
 
-| column        | type                         | notes                |
-| ------------- | ---------------------------- | -------------------- |
-| `id`          | `uuid` PK                    |                      |
-| `mission_id`  | `uuid` → `missions(id)`      | `on delete cascade`  |
-| `question_id` | `uuid` → `question_bank(id)` | `on delete restrict` |
-| `position`    | `smallint`                   | `> 0`                |
-| `created_at`  | `timestamptz`                |                      |
+| column             | type                         | notes                                                                                                                                                              |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`               | `uuid` PK                    |                                                                                                                                                                    |
+| `mission_id`       | `uuid` → `missions(id)`      | `on delete cascade`                                                                                                                                                |
+| `question_id`      | `uuid` → `question_bank(id)` | `on delete restrict`                                                                                                                                               |
+| `position`         | `smallint`                   | `> 0`                                                                                                                                                              |
+| `selection_reason` | `text`                       | nullable, checked in `weak_skill` \| `review_due` \| `curriculum_coverage` \| `challenge` \| `fallback` — internal explainability only, never shown to the learner |
+| `created_at`       | `timestamptz`                |                                                                                                                                                                    |
 
 Unique: `(mission_id, position)` and `(mission_id, question_id)` — no duplicate position, no repeated question in a mission.
 Index: `mission_items_mission_idx` on `(mission_id, position)`.
@@ -186,6 +189,7 @@ RLS: single `for all` policy via `learners → parent_id = auth.uid()`.
 | `0004_phase3a_daily_missions.sql`          | `question_bank`, `question_options`, `missions`, `mission_items`, `question_attempts`         |
 | `0007_phase5_learning_profile_mastery.sql` | `learner_skill_mastery`; adds `question_attempts.mastery_processed_at`                        |
 | `0008_backfill_question_skill.sql`         | backfills `question_bank.skill_id`, makes it `not null`                                       |
+| `0009_phase5_adaptive_missions.sql`        | adds `mission_items.selection_reason`, `missions.generation_strategy`/`generation_metadata`   |
 
 Migrations are written to be **idempotent** (`create table if not exists`, `create index if not exists`, `drop policy if exists` before `create policy`, seed inserts use `on conflict do update`) so they're safe to re-run. Apply new migrations through the Supabase CLI / dashboard SQL editor in numeric order.
 

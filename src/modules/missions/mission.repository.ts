@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MissionItem, MissionSummary } from "./mission.types";
-import type { DatabaseQuestionRecord } from "./mission.generator";
+
+export interface CreateMissionOptions {
+  generationStrategy?: string;
+  /** Non-sensitive summary only (category counts, fallback count, warnings) — never prompts, answers, or names. */
+  generationMetadata?: Record<string, unknown>;
+}
 
 export class MissionRepositoryError extends Error {}
 
@@ -21,11 +26,8 @@ export interface MissionRepository {
     missionDate: string,
     estimatedMinutes: number,
     items: MissionItem[],
+    options?: CreateMissionOptions,
   ): Promise<MissionSummary>;
-  getActiveQuestionsBySubject(
-    subjectSlug: string,
-    limit: number,
-  ): Promise<DatabaseQuestionRecord[]>;
 }
 
 export class SupabaseMissionRepository implements MissionRepository {
@@ -130,6 +132,7 @@ export class SupabaseMissionRepository implements MissionRepository {
     missionDate: string,
     estimatedMinutes: number,
     items: MissionItem[],
+    options?: CreateMissionOptions,
   ): Promise<MissionSummary> {
     const { data, error } = await this.supabase
       .from("missions")
@@ -138,6 +141,8 @@ export class SupabaseMissionRepository implements MissionRepository {
         mission_date: missionDate,
         status: "ready",
         estimated_minutes: estimatedMinutes,
+        generation_strategy: options?.generationStrategy ?? null,
+        generation_metadata: options?.generationMetadata ?? {},
       })
       .select("id,learner_id,mission_date,status,estimated_minutes")
       .single();
@@ -155,6 +160,7 @@ export class SupabaseMissionRepository implements MissionRepository {
       mission_id: data.id,
       question_id: item.questionId,
       position: item.position,
+      selection_reason: item.selectionReason ?? null,
     }));
 
     const { error: insertError } = await this.supabase
@@ -181,46 +187,6 @@ export class SupabaseMissionRepository implements MissionRepository {
       correctCount: 0,
       completedAt: null,
     };
-  }
-
-  async getActiveQuestionsBySubject(
-    subjectSlug: string,
-    limit: number,
-  ): Promise<DatabaseQuestionRecord[]> {
-    const { data: subject, error: subjectError } = await this.supabase
-      .from("subjects")
-      .select("id")
-      .eq("slug", subjectSlug)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (subjectError) {
-      throw new MissionQuestionBankError(
-        `Unable to load subject ${subjectSlug}`,
-      );
-    }
-
-    if (!subject) {
-      throw new MissionQuestionBankError(`Subject not found: ${subjectSlug}`);
-    }
-
-    const { data, error } = await this.supabase
-      .from("question_bank")
-      .select("id")
-      .eq("subject_id", subject.id)
-      .eq("is_active", true)
-      .limit(limit * 3);
-
-    if (error) {
-      throw new MissionQuestionBankError(
-        `Unable to load questions for ${subjectSlug}`,
-      );
-    }
-
-    return (data ?? []).map((row) => ({
-      id: row.id,
-      subjectSlug: subjectSlug as DatabaseQuestionRecord["subjectSlug"],
-    }));
   }
 }
 

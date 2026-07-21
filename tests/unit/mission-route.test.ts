@@ -53,19 +53,22 @@ describe("missions today route", () => {
 
   it("returns 200 with the mission on success", async () => {
     mockAuthenticatedSupabase();
-    vi.doMock("@/modules/missions/mission.service", async () => {
-      const actual = await vi.importActual<
-        typeof import("@/modules/missions/mission.service")
-      >("@/modules/missions/mission.service");
-      return {
-        ...actual,
-        MissionService: class {
-          async getOrCreateTodaysMission() {
-            return { missionId: "mission-1", questionCount: 16 };
-          }
-        },
-      };
-    });
+    vi.doMock(
+      "@/modules/adaptive-learning/adaptive-mission.service",
+      async () => {
+        const actual = await vi.importActual<
+          typeof import("@/modules/adaptive-learning/adaptive-mission.service")
+        >("@/modules/adaptive-learning/adaptive-mission.service");
+        return {
+          ...actual,
+          AdaptiveMissionService: class {
+            async getOrCreateTodaysMission() {
+              return { missionId: "mission-1", questionCount: 16 };
+            }
+          },
+        };
+      },
+    );
 
     const { GET: mockedGet } = await import("@/app/api/missions/today/route");
     const response = await mockedGet(validLearnerRequest(), {
@@ -81,23 +84,26 @@ describe("missions today route", () => {
 
   it("returns 403 when the learner is not owned", async () => {
     mockAuthenticatedSupabase();
-    vi.doMock("@/modules/missions/mission.service", async () => {
-      const actual = await vi.importActual<
-        typeof import("@/modules/missions/mission.service")
-      >("@/modules/missions/mission.service");
-      const { MissionAccessError } =
-        await import("@/modules/missions/mission.repository");
-      return {
-        ...actual,
-        MissionService: class {
-          getOrCreateTodaysMission() {
-            throw new MissionAccessError(
-              "Learner is not owned by the current user",
-            );
-          }
-        },
-      };
-    });
+    vi.doMock(
+      "@/modules/adaptive-learning/adaptive-mission.service",
+      async () => {
+        const actual = await vi.importActual<
+          typeof import("@/modules/adaptive-learning/adaptive-mission.service")
+        >("@/modules/adaptive-learning/adaptive-mission.service");
+        const { MissionAccessError } =
+          await import("@/modules/missions/mission.repository");
+        return {
+          ...actual,
+          AdaptiveMissionService: class {
+            getOrCreateTodaysMission() {
+              throw new MissionAccessError(
+                "Learner is not owned by the current user",
+              );
+            }
+          },
+        };
+      },
+    );
 
     const { GET: mockedGet } = await import("@/app/api/missions/today/route");
     const response = await mockedGet(validLearnerRequest(), {
@@ -109,21 +115,24 @@ describe("missions today route", () => {
 
   it("returns 409 when the question bank has too few active questions", async () => {
     mockAuthenticatedSupabase();
-    vi.doMock("@/modules/missions/mission.service", async () => {
-      const actual = await vi.importActual<
-        typeof import("@/modules/missions/mission.service")
-      >("@/modules/missions/mission.service");
-      const { MissionQuestionBankError } =
-        await import("@/modules/missions/mission.repository");
-      return {
-        ...actual,
-        MissionService: class {
-          getOrCreateTodaysMission() {
-            throw new MissionQuestionBankError("Not enough questions");
-          }
-        },
-      };
-    });
+    vi.doMock(
+      "@/modules/adaptive-learning/adaptive-mission.service",
+      async () => {
+        const actual = await vi.importActual<
+          typeof import("@/modules/adaptive-learning/adaptive-mission.service")
+        >("@/modules/adaptive-learning/adaptive-mission.service");
+        const { MissionQuestionBankError } =
+          await import("@/modules/missions/mission.repository");
+        return {
+          ...actual,
+          AdaptiveMissionService: class {
+            getOrCreateTodaysMission() {
+              throw new MissionQuestionBankError("Not enough questions");
+            }
+          },
+        };
+      },
+    );
 
     const { GET: mockedGet } = await import("@/app/api/missions/today/route");
     const response = await mockedGet(validLearnerRequest(), {
@@ -135,21 +144,24 @@ describe("missions today route", () => {
 
   it("returns 409 on a mission creation race", async () => {
     mockAuthenticatedSupabase();
-    vi.doMock("@/modules/missions/mission.service", async () => {
-      const actual = await vi.importActual<
-        typeof import("@/modules/missions/mission.service")
-      >("@/modules/missions/mission.service");
-      const { MissionDuplicateError } =
-        await import("@/modules/missions/mission.repository");
-      return {
-        ...actual,
-        MissionService: class {
-          getOrCreateTodaysMission() {
-            throw new MissionDuplicateError("Mission already exists");
-          }
-        },
-      };
-    });
+    vi.doMock(
+      "@/modules/adaptive-learning/adaptive-mission.service",
+      async () => {
+        const actual = await vi.importActual<
+          typeof import("@/modules/adaptive-learning/adaptive-mission.service")
+        >("@/modules/adaptive-learning/adaptive-mission.service");
+        const { MissionDuplicateError } =
+          await import("@/modules/missions/mission.repository");
+        return {
+          ...actual,
+          AdaptiveMissionService: class {
+            getOrCreateTodaysMission() {
+              throw new MissionDuplicateError("Mission already exists");
+            }
+          },
+        };
+      },
+    );
 
     const { GET: mockedGet } = await import("@/app/api/missions/today/route");
     const response = await mockedGet(validLearnerRequest(), {
@@ -161,19 +173,22 @@ describe("missions today route", () => {
 
   it("returns 500 and reports to Sentry for an unexpected error", async () => {
     mockAuthenticatedSupabase();
-    vi.doMock("@/modules/missions/mission.service", async () => {
-      const actual = await vi.importActual<
-        typeof import("@/modules/missions/mission.service")
-      >("@/modules/missions/mission.service");
-      return {
-        ...actual,
-        MissionService: class {
-          getOrCreateTodaysMission() {
-            throw new Error("boom");
-          }
-        },
-      };
-    });
+    vi.doMock(
+      "@/modules/adaptive-learning/adaptive-mission.service",
+      async () => {
+        const actual = await vi.importActual<
+          typeof import("@/modules/adaptive-learning/adaptive-mission.service")
+        >("@/modules/adaptive-learning/adaptive-mission.service");
+        return {
+          ...actual,
+          AdaptiveMissionService: class {
+            getOrCreateTodaysMission() {
+              throw new Error("boom");
+            }
+          },
+        };
+      },
+    );
 
     const { GET: mockedGet } = await import("@/app/api/missions/today/route");
     const response = await mockedGet(validLearnerRequest(), {

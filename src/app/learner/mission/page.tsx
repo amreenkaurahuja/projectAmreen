@@ -5,7 +5,8 @@ import { MissionPlayer } from "@/components/missions/mission-player";
 import { requireUser } from "@/lib/auth/require-user";
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseMissionRepository } from "@/modules/missions/mission.repository";
-import { MissionService } from "@/modules/missions/mission.service";
+import { AdaptiveMissionService } from "@/modules/adaptive-learning/adaptive-mission.service";
+import { SupabaseAdaptiveDataRepository } from "@/modules/adaptive-learning/adaptive-mission.repository";
 import { SupabaseMissionPlayerRepository } from "@/modules/missions/mission-player.repository";
 import { MissionPlayerService } from "@/modules/missions/mission-player.service";
 import { SupabaseMissionCompletionRepository } from "@/modules/missions/mission-completion.repository";
@@ -59,7 +60,13 @@ export default async function MissionPage({
   const missionRepository = new SupabaseMissionRepository(
     supabase as SupabaseClient,
   );
-  const missionService = new MissionService(missionRepository);
+  const adaptiveRepository = new SupabaseAdaptiveDataRepository(
+    supabase as SupabaseClient,
+  );
+  const missionService = new AdaptiveMissionService(
+    missionRepository,
+    adaptiveRepository,
+  );
   const missionSummary =
     await missionService.getOrCreateTodaysMission(learnerId);
 

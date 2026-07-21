@@ -201,6 +201,9 @@ describe("/learner/dashboard page branches", () => {
     expect(screen.getByText("40%")).toBeInTheDocument();
     expect(screen.getByText("Mathematics")).toBeInTheDocument();
     expect(screen.queryByText(/Resume Mission/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/personalised for your learning/i),
+    ).toBeInTheDocument();
   });
 
   it("shows Resume Mission and progress once some questions are answered", async () => {

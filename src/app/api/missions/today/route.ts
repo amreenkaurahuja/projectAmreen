@@ -8,7 +8,8 @@ import {
   MissionQuestionBankError,
   SupabaseMissionRepository,
 } from "@/modules/missions/mission.repository";
-import { MissionService } from "@/modules/missions/mission.service";
+import { AdaptiveMissionService } from "@/modules/adaptive-learning/adaptive-mission.service";
+import { SupabaseAdaptiveDataRepository } from "@/modules/adaptive-learning/adaptive-mission.repository";
 import { logger } from "@/lib/observability/logger";
 import { withApiObservability } from "@/lib/observability/api";
 
@@ -40,7 +41,13 @@ export const GET = withApiObservability(
       const repository = new SupabaseMissionRepository(
         supabase as SupabaseClient,
       );
-      const service = new MissionService(repository);
+      const adaptiveRepository = new SupabaseAdaptiveDataRepository(
+        supabase as SupabaseClient,
+      );
+      const service = new AdaptiveMissionService(
+        repository,
+        adaptiveRepository,
+      );
       const mission = await service.getOrCreateTodaysMission(parsed.data);
       return NextResponse.json(mission, { status: 200 });
     } catch (error) {

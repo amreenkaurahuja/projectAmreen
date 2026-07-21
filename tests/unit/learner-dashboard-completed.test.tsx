@@ -111,5 +111,8 @@ describe("learner dashboard: completed mission state", () => {
     expect(screen.getByText(/Review Mission/)).toBeInTheDocument();
     expect(screen.queryByText(/Resume Mission/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Start Mission/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/personalised for your learning/i),
+    ).not.toBeInTheDocument();
   });
 });
