@@ -1,11 +1,16 @@
 import { expect, test } from "@playwright/test";
 
-test("Phase 0 home page is available", async ({ page }) => {
+test("home page is available", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Project Amreen" }),
+    page.getByRole("heading", {
+      name: "A private, adaptive learning foundation built one reliable phase at a time.",
+    }),
   ).toBeVisible();
-  await expect(page.getByText("Supabase SSR client boundary")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Create parent account" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
 });
 
 test("health endpoint returns ok", async ({ request }) => {
