@@ -1,5 +1,17 @@
 export type MissionStatus = "ready" | "in_progress" | "completed";
 
+/**
+ * Why the adaptive generator chose a given question. Persisted on
+ * mission_items (see migration 0009) — internal/explainability data only,
+ * never surfaced to the learner UI.
+ */
+export type SelectionReason =
+  | "weak_skill"
+  | "review_due"
+  | "curriculum_coverage"
+  | "challenge"
+  | "fallback";
+
 export interface MissionSummary {
   missionId: string;
   learnerId: string;
@@ -17,6 +29,8 @@ export interface MissionItem {
   questionId: string;
   position: number;
   subjectSlug: string;
+  /** Set by the adaptive generator; absent for anything created before it. */
+  selectionReason?: SelectionReason;
 }
 
 export interface Mission extends MissionSummary {

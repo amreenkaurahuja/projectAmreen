@@ -24,12 +24,12 @@ src/
 
 ### `modules/<domain>/`
 
-Each domain (currently `missions` and `learning-profile`) is split into:
+Each domain (currently `missions`, `learning-profile`, and `adaptive-learning`) is split into:
 
 - **`*.types.ts`** — plain data shapes, no imports of Supabase or Next.js. Safe to import from client components.
 - **`*.repository.ts`** — an interface plus a `Supabase*Repository` implementation. This is the _only_ place that talks to `supabase.from(...)`. Repository methods map Postgres rows to the domain's types and translate Postgres errors into typed domain errors (`MissionAccessError`, `MissionNotFoundError`, `MasteryAccessError`, …).
 - **`*.service.ts`** — orchestrates one or more repositories, enforces ownership/authorization order-of-operations, and contains the actual business rules (e.g. "a mission is complete when every item has an attempt").
-- **`*-calculator.ts` / `*-summary.ts` / `*.calculations.ts`** — pure, framework-agnostic functions with no Supabase import, so the exact same logic (mission scoring, mastery scoring, profile aggregation) can run in a Server Component _and_ in a `"use client"` component without duplicating it or smuggling a database call into the browser bundle. `mission-completion.calculations.ts`, `learning-profile/mastery-calculator.ts`, and `learning-profile/mastery-summary.ts` all follow this pattern.
+- **`*-calculator.ts` / `*-summary.ts` / `*.calculations.ts`** — pure, framework-agnostic functions with no Supabase import, so the exact same logic (mission scoring, mastery scoring, profile aggregation) can run in a Server Component _and_ in a `"use client"` component without duplicating it or smuggling a database call into the browser bundle. `mission-completion.calculations.ts`, `learning-profile/mastery-calculator.ts`, `learning-profile/mastery-summary.ts`, and `adaptive-learning/adaptive-selector.ts` all follow this pattern.
 
 Pages and route handlers construct `new Supabase<X>Repository(supabase)` and `new <X>Service(repository)` and call the service — they never call `supabase.from(...)` for domain data directly (a couple of pages do a single direct `learners` ownership check inline, matching the pattern already used for the mission pages; this is a deliberate, narrow exception, not general practice).
 
@@ -116,14 +116,76 @@ Mastery only works if a question resolves to exactly one skill. Migration `0007`
 
 Migration `0008_backfill_question_skill.sql` closes this: it backfills `question_bank.skill_id` from each topic's skill (only where that topic had exactly one active skill — genuinely ambiguous topics are left alone, causing the following `not null` to fail loudly rather than guess), then makes the column `not null`. `scripts/seedQuestions.ts` and `data/questions.json` were updated alongside it to always supply `skill_id` (via a `skillCode` matching `skills.code`) directly. The topic-fallback in `getQuestionCurriculumMetadata` is kept as a defensive path only, for an environment that hasn't run `0008` yet — it should never be exercised in practice going forward.
 
-### Planned: `mastery_history` (Phase 5.2, not yet built)
+### Planned: `mastery_history` (still not built — deferred to Phase 5.3)
 
-`learner_skill_mastery` is current-state only — no time series — so the dashboard can show "where a learner stands today" but not "how they've progressed" (no trend charts, plateau detection, or regression alerts). Design intent for Phase 5.2, not implemented in this phase:
+`learner_skill_mastery` is current-state only — no time series — so the dashboard can show "where a learner stands today" but not "how they've progressed" (no trend charts, plateau detection, or regression alerts). Design intent, not implemented yet:
 
 - **New table**: `mastery_history(id, learner_id, skill_id, mastery_score, confidence_score, recorded_at, source)`, append-only, indexed on `(learner_id, skill_id, recorded_at)`. No RLS write path from the client — only ever written by `MasteryService`.
 - **Write strategy**: snapshot-on-change, not snapshot-per-attempt — append a row only when an attempt actually moves `mastery_score` (skip the write when a score is already clamped at 0/100 and the attempt doesn't move it). This keeps the log proportional to genuine progress rather than growing one row per question forever, while still being granular enough for a "May 1 → June 5" style trend chart. The alternative (periodic, e.g. daily, snapshots) is cheaper still but would miss same-day swings; worth revisiting if snapshot-on-change turns out to grow faster than expected once there's real usage data.
 - **Where it plugs in**: `MasteryService.applyWithRetry`, right after a successful `insertMasteryRow`/`updateMasteryRow`, comparing the previous and new `mastery_score`.
-- **Known v1 limitations carried into this design**: no adaptive question selection yet (mastery is recorded but doesn't influence mission generation); no charts yet (the dashboard section is plain stat tiles by design for this phase); the backfill script loads all pending attempts in a single query rather than paginating (fine at this project's current data volume).
+
+**Phase 5.2 decision**: re-evaluated this design while building the adaptive generator below, and deliberately did not build it. The selector only ever reads _current_ `mastery_score`, `total_attempts`, and `next_review_at` to choose questions — nothing in the allocation, difficulty-matching, or fallback logic needs a historical trend, so there was no adaptive-selection reason to build it now. The debugging benefit (seeing how a score arrived where it is) is real but speculative rather than a concrete need this phase hit. Left fully documented here for whenever trend charts or plateau/regression detection actually get scheduled.
+
+## Adaptive mission generation (Phase 5.2)
+
+`src/modules/adaptive-learning/` replaces the old static 8/4/2/2 subject-interleave generator (`mission.generator.ts`/`mission.service.ts` — deleted) with a deterministic, explainable selector that chooses each day's 16 questions from a learner's mastery, review schedule, and curriculum coverage. No adaptive AI, no question generation — this only changes _which existing question_bank rows_ get chosen and in what order.
+
+### Category allocations
+
+Target composition for a learner with mastery data (a category may contribute fewer than its target when too few eligible questions exist for it — see "Fallback" below):
+
+| Category              | Target | Eligibility                                | Priority order                                                                          |
+| --------------------- | ------ | ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `weak_skill`          | 7      | `learner_skill_mastery.mastery_score < 60` | lowest mastery first, then more attempts over fewer                                     |
+| `review_due`          | 4      | `next_review_at <= reference timestamp`    | oldest overdue first, then lowest mastery                                               |
+| `curriculum_coverage` | 3      | any active question (no hard filter)       | round-robin across active subjects; within a subject, untested/low-attempt skills first |
+| `challenge`           | 2      | `difficulty >= 4` (hard filter)            | prefers mastery ≥ 70; a skill below 50 mastery is only used if nothing else qualifies   |
+
+Processed in the order `review_due` → `weak_skill` → `curriculum_coverage` → `challenge`, so `weak_skill` can see (and deprioritise, not exclude) skills `review_due` already picked — matching the spec's "don't double up on the same skill unless the mission needs the slots." Any slots still open after all four categories run are filled by **fallback** (see below), and every selected question gets a `reason` tag persisted on `mission_items.selection_reason` for internal explainability — never shown to the learner.
+
+### New-learner baseline
+
+A learner with zero `learner_skill_mastery` rows skips category allocation entirely and gets a **balanced baseline mission** instead: round-robin across active subjects, difficulty 1-3 preferred, at most 2 difficulty-4 questions, difficulty-5 excluded unless the pool is otherwise too thin to reach 16.
+
+### Difficulty adaptation
+
+Mastery maps to a preferred/allowed difficulty band (`adaptive-config.ts`'s `difficultyBands`), used as a ranking signal, not a hard filter — a category can still complete even without a perfect-difficulty candidate:
+
+| Mastery                     | Preferred | Allowed |
+| --------------------------- | --------- | ------- |
+| < 40                        | 1-2       | 1-3     |
+| 40-59 (and untested skills) | 2-3       | 1-4     |
+| 60-79                       | 3-4       | 2-5     |
+| 80-100                      | 4-5       | 3-5     |
+
+An untested skill (no mastery row) is scored as if mastery were 50 for this purpose — it lands in the 40-59 band, whose preferred range `[2,3]` is exactly the spec's "untested skill" target.
+
+### Deterministic seed strategy
+
+The whole selector (`selectAdaptiveMission` in `adaptive-selector.ts`) is a pure function: same candidates + mastery + recent attempts + subjects + reference timestamp + config → same selected question IDs in the same order, always. No `Math.random` anywhere in it. The seed is `` `${learnerId}:${missionDate}` `` (`seeded-random.ts`'s `buildMissionSeed`), hashed (FNV-1a) into a numeric seed for a small deterministic PRNG (mulberry32). That seed drives: the subject order used for round-robin categories, every priority tie-break (via a per-candidate deterministic hash, not array order), and the final shuffle that decides presentation order. A different learner or a different date changes the seed and therefore the ordering; the same learner on the same date is always identical.
+
+### Recent-question cooldown
+
+A question answered within `cooldownDays` (default 7) of the reference timestamp is deprioritised, not hard-excluded — every category's priority tuple includes a cooldown-penalty tier, so a cooldown-affected question only gets picked when nothing better is available. `review_due` never applies the cooldown at all (a due review is exactly the case the spec says should override it).
+
+### Subject balance
+
+Soft, not hard: every active subject is targeted for at least `subjectSoftMinimum` (2) questions and capped around `subjectSoftCap` (7), but both are just priority tiers, not exclusions — `weak_skill`/`review_due` don't consider the cap at all (favouring learning need over cosmetic balance, per spec), while `curriculum_coverage` and the fallback fill actively round-robin/deprioritise-when-over-cap to keep the mission from being dominated by one subject when the data doesn't demand it.
+
+### Fallback strategy
+
+If the four categories don't fill all 16 slots, `pickFallback` fills the rest from any remaining active candidate, preferring (in order) a subject still below its soft minimum, then a question not on cooldown, then a subject not yet over its soft cap, with the same deterministic tie-break as everywhere else. The spec's 5-step recommended fallback order collapses to this in practice: `curriculum_coverage`'s eligibility is "any active question," so by the time fallback runs, every remaining candidate already qualifies as "coverage-adjacent" — there's nothing left to distinguish steps 1-3 of that order once you reach this point. If fewer than 16 eligible questions exist at all, the mission is created with however many unique ones do exist (`capacityWarning: true`, logged); only a **zero**-candidate pool fails the request (`MissionQuestionBankError`).
+
+### Mission reuse and concurrency
+
+Unchanged from before — `AdaptiveMissionService` reuses the existing `MissionRepository.findTodaysMission` (returns the existing mission for `learner_id`+`mission_date` without regenerating) and `MissionRepository.createMission` (the same conflict-safe insert: a concurrent duplicate insert hits the `missions(learner_id, mission_date)` unique constraint and the loser re-reads and returns the winner's mission, exactly as the old static generator did). None of that persistence/concurrency logic was duplicated — only the candidate-loading and selection steps in between are new.
+
+### Known v1 limitations
+
+- No adaptive difficulty _within_ a mission beyond the ranking hints above — categories don't hard-guarantee a perfect difficulty match, by design (a category shouldn't fail just because no ideal-difficulty candidate exists).
+- Subject balancing during fallback is a static per-pick re-scan (recomputed each pick, not a single upfront sort) — fine at 16 slots; would need a smarter structure at a much larger mission size.
+- No use of `learners.school_year`/`exam_target` for candidate filtering — investigated (see below) and found unused by the _previous_ generator too; carrying that forward unchanged rather than introducing new filtering as an incidental part of this phase.
+- `mastery_history` remains undecided/deferred (see above) — Phase 5.3 candidate.
 
 ## Observability
 

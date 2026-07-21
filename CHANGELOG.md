@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/), grouped by shipped milestone rather than by individual commit — see `docs/ReleaseNotes.md` for the more detailed, chronological version, and `git log` for full commit history.
 
+## v0.6.0 — Adaptive mission generation
+
+### Added
+
+- Deterministic, explainable adaptive daily mission generator (`src/modules/adaptive-learning/`) replacing the static 8/4/2/2 subject-interleave — questions chosen from weak skills, due reviews, curriculum coverage, and challenge, seeded per learner/date so the same inputs always produce the same mission.
+- A balanced baseline mission path for learners with no mastery data yet.
+- Recent-question cooldown (7 days by default), soft subject balancing, and mastery-driven difficulty targeting.
+- `mission_items.selection_reason` and `missions.generation_strategy`/`generation_metadata` (`0009_phase5_adaptive_missions.sql`) for internal explainability — never exposed to the learner.
+- A small "personalised for your learning" note on the dashboard's mission card.
+
+### Removed
+
+- The old static mission generator (`mission.generator.ts`, `mission.service.ts`) — fully superseded by the adaptive generator.
+
 ## v0.5.0 — Learning profile & mastery engine
 
 ### Added

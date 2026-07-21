@@ -38,6 +38,20 @@ test.describe("mission player", () => {
     await expect(page.getByText(/question \d+ of 16/i)).toBeVisible();
   });
 
+  test("dashboard shows a personalised-mission message without exposing internal selection details", async ({
+    page,
+  }) => {
+    await goToLearnerDashboard(page);
+    await expect(
+      page.getByText(/personalised for your learning/i),
+    ).toBeVisible();
+    // The mission generator's internal category names must never leak into
+    // the learner-facing UI (see docs/Architecture.md's UI-indication note).
+    await expect(
+      page.getByText(/weak_skill|review_due|fallback/i),
+    ).not.toBeVisible();
+  });
+
   test("submits an answer and reveals feedback and the correct answer", async ({
     page,
   }) => {

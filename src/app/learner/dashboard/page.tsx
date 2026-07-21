@@ -5,7 +5,8 @@ import { requireUser } from "@/lib/auth/require-user";
 import { getCurriculumSubjects } from "@/lib/curriculum/catalogue";
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseMissionRepository } from "@/modules/missions/mission.repository";
-import { MissionService } from "@/modules/missions/mission.service";
+import { AdaptiveMissionService } from "@/modules/adaptive-learning/adaptive-mission.service";
+import { SupabaseAdaptiveDataRepository } from "@/modules/adaptive-learning/adaptive-mission.repository";
 import { SupabaseMasteryRepository } from "@/modules/learning-profile/mastery.repository";
 import { MasteryService } from "@/modules/learning-profile/mastery.service";
 
@@ -42,7 +43,13 @@ export default async function LearnerDashboard({
   if (!learnerIdSchema.safeParse(learnerId).success) notFound();
 
   const repository = new SupabaseMissionRepository(supabase as never);
-  const missionService = new MissionService(repository);
+  const adaptiveRepository = new SupabaseAdaptiveDataRepository(
+    supabase as never,
+  );
+  const missionService = new AdaptiveMissionService(
+    repository,
+    adaptiveRepository,
+  );
   const masteryService = new MasteryService(
     new SupabaseMasteryRepository(supabase as never),
   );
@@ -125,6 +132,11 @@ export default async function LearnerDashboard({
           {mission.questionCount} questions · about {mission.estimatedMinutes}{" "}
           minutes
         </h2>
+        {!missionComplete && (
+          <p className="mt-1 text-sm text-neutral-400">
+            Today&apos;s mission is personalised for your learning.
+          </p>
+        )}
         <p className="mt-2 max-w-2xl text-neutral-300">
           {missionComplete
             ? `Mission complete · ${mission.correctCount}/${mission.questionCount} correct · ${missionAccuracy}% accuracy`

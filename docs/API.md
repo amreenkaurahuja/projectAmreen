@@ -51,7 +51,7 @@ Auth required. Creates a learner profile owned by the caller.
 
 ## `GET /api/missions/today?learner=<uuid>`
 
-Auth required. Returns today's mission for the learner, creating it (16 interleaved questions across Mathematics/English/Verbal Reasoning/Non-Verbal Reasoning) if it doesn't exist yet. Concurrency-safe: a duplicate-create race resolves by re-reading the winning row.
+Auth required. Returns today's mission for the learner, creating it if it doesn't exist yet. As of Phase 5.2, generation is **adaptive** — up to 16 questions chosen from the learner's mastery, review schedule, and curriculum coverage (deterministic per learner/date, no randomness), falling back to a balanced baseline mix for a learner with no mastery data yet. See `docs/Architecture.md` → "Adaptive mission generation" for the algorithm. Concurrency-safe: a duplicate-create race resolves by re-reading the winning row.
 
 **Responses**: `200` → `MissionSummary` (see `mission.types.ts`) · `400` invalid learner id · `401` · `403` learner not owned · `409` insufficient active questions in the bank, or a genuine create conflict · `500`.
 
