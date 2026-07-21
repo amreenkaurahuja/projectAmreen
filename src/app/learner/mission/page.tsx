@@ -8,6 +8,7 @@ import { SupabaseMissionRepository } from "@/modules/missions/mission.repository
 import { MissionService } from "@/modules/missions/mission.service";
 import { SupabaseMissionPlayerRepository } from "@/modules/missions/mission-player.repository";
 import { MissionPlayerService } from "@/modules/missions/mission-player.service";
+import { SupabaseMissionCompletionRepository } from "@/modules/missions/mission-completion.repository";
 import { getInitialMissionIndex } from "@/modules/missions/resume";
 
 const learnerIdSchema = z.string().uuid();
@@ -72,15 +73,24 @@ export default async function MissionPage({
     supabase as SupabaseClient,
   );
   const playerService = new MissionPlayerService(playerRepository);
-  const mission = await playerService.getMissionForPlayer(
-    learnerId,
-    missionSummary.missionId,
+  const completionRepository = new SupabaseMissionCompletionRepository(
+    supabase as SupabaseClient,
   );
+  const [mission, learnerName] = await Promise.all([
+    playerService.getMissionForPlayer(learnerId, missionSummary.missionId),
+    completionRepository.getLearnerDisplayName(learnerId),
+  ]);
 
   // Computed here, from the attempts just loaded from the database, and
   // passed to the client as an explicit value — the client must not
   // recompute or default this to 0.
   const initialIndex = getInitialMissionIndex(mission);
 
-  return <MissionPlayer initialMission={mission} initialIndex={initialIndex} />;
+  return (
+    <MissionPlayer
+      initialMission={mission}
+      initialIndex={initialIndex}
+      learnerName={learnerName ?? "Learner"}
+    />
+  );
 }

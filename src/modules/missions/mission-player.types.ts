@@ -38,12 +38,6 @@ export interface MissionPlayer {
   questions: MissionPlayerQuestion[];
 }
 
-export interface SubjectBreakdown {
-  subjectName: string;
-  total: number;
-  correct: number;
-}
-
 export interface MissionSummaryStats {
   status: MissionPlayerStatus;
   totalQuestions: number;

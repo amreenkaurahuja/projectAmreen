@@ -9,6 +9,7 @@ export interface MissionSummary {
   estimatedMinutes: number;
   answeredCount: number;
   correctCount: number;
+  completedAt: string | null;
 }
 
 export interface MissionItem {

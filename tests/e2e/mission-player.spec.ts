@@ -127,4 +127,91 @@ test.describe("mission player", () => {
       page.getByRole("link", { name: /return to dashboard/i }),
     ).toBeVisible();
   });
+
+  async function completeAllQuestions(page: Page) {
+    for (let i = 0; i < 16; i += 1) {
+      const heading = page.getByRole("heading", { name: "Mission Complete" });
+      if (await heading.isVisible().catch(() => false)) break;
+
+      const options = page.getByRole("radio");
+      const optionCount = await options.count();
+      if (optionCount === 0) break;
+
+      const submit = page.getByRole("button", {
+        name: /check answer|update answer/i,
+      });
+      if (await submit.isVisible().catch(() => false)) {
+        await options.first().check();
+        await submit.click();
+      }
+
+      const continueButton = page.getByRole("button", { name: /continue/i });
+      if (await continueButton.isVisible().catch(() => false)) {
+        await continueButton.click();
+      }
+    }
+  }
+
+  test("returns to a dashboard showing the completed state", async ({
+    page,
+  }) => {
+    await goToLearnerDashboard(page);
+    await page
+      .getByRole("link", {
+        name: /start mission|resume mission|review mission/i,
+      })
+      .click();
+    await page.waitForURL(/\/learner\/mission\?/);
+
+    await completeAllQuestions(page);
+    await expect(
+      page.getByRole("heading", { name: "Mission Complete" }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: /return to dashboard/i }).click();
+    await page.waitForURL(/\/learner\/dashboard\?learner=/);
+
+    await expect(page.getByText(/mission complete/i)).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /review mission/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /^resume mission/i }),
+    ).not.toBeVisible();
+  });
+
+  test("review mistakes shows only incorrect answers, or a perfect score", async ({
+    page,
+  }) => {
+    await goToLearnerDashboard(page);
+    await page
+      .getByRole("link", {
+        name: /start mission|resume mission|review mission/i,
+      })
+      .click();
+    await page.waitForURL(/\/learner\/mission\?/);
+
+    await completeAllQuestions(page);
+    await expect(
+      page.getByRole("heading", { name: "Mission Complete" }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: /review mistakes/i }).click();
+    await page.waitForURL(/\/learner\/mission\/review\?/);
+
+    const perfectScore = page.getByRole("heading", { name: "Perfect score" });
+    const mistakesHeading = page.getByRole("heading", {
+      name: "Review Mistakes",
+    });
+    await expect(mistakesHeading).toBeVisible();
+
+    if (await perfectScore.isVisible().catch(() => false)) {
+      await expect(
+        page.getByRole("link", { name: /return to dashboard/i }),
+      ).toBeVisible();
+    } else {
+      await expect(page.getByText(/your answer:/i).first()).toBeVisible();
+      await expect(page.getByText(/correct answer:/i).first()).toBeVisible();
+    }
+  });
 });

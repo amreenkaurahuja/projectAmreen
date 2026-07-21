@@ -1,16 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { buildCompletionSummary } from "@/modules/missions/mission-completion.calculations";
 import type {
   MissionPlayer as MissionPlayerData,
   MissionPlayerQuestion,
-  SubjectBreakdown,
   SubmitAnswerResult,
 } from "@/modules/missions/mission-player.types";
 
 export function MissionPlayer({
   initialMission,
   initialIndex,
+  learnerName,
 }: {
   initialMission: MissionPlayerData;
   /**
@@ -20,6 +21,7 @@ export function MissionPlayer({
    * and never reset by an effect after mount.
    */
   initialIndex: number;
+  learnerName: string;
 }) {
   const [mission, setMission] = useState(initialMission);
   const [index, setIndex] = useState(initialIndex);
@@ -27,32 +29,10 @@ export function MissionPlayer({
   const complete = index >= mission.questions.length;
   const question = mission.questions[index];
 
-  const accuracy = mission.answeredCount
-    ? Math.round((mission.correctCount / mission.answeredCount) * 100)
-    : 0;
-
-  const subjectBreakdown: SubjectBreakdown[] = useMemo(() => {
-    const bySubject = new Map<string, SubjectBreakdown>();
-    for (const item of mission.questions) {
-      const existing = bySubject.get(item.subjectName) ?? {
-        subjectName: item.subjectName,
-        total: 0,
-        correct: 0,
-      };
-      existing.total += 1;
-      if (item.attempt?.isCorrect) existing.correct += 1;
-      bySubject.set(item.subjectName, existing);
-    }
-    return Array.from(bySubject.values());
-  }, [mission.questions]);
-
-  const recordedMinutes = useMemo(() => {
-    const totalMs = mission.questions.reduce(
-      (sum, item) => sum + (item.attempt?.responseMs ?? 0),
-      0,
-    );
-    return Math.round(totalMs / 60000);
-  }, [mission.questions]);
+  const summary = useMemo(
+    () => buildCompletionSummary(mission, learnerName),
+    [mission, learnerName],
+  );
 
   function applyAnswer(
     missionItemId: string,
@@ -91,10 +71,6 @@ export function MissionPlayer({
     setIndex((current) => Math.max(current - 1, 0));
   }
 
-  function reviewFromStart() {
-    setIndex(0);
-  }
-
   if (complete) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-12 text-center">
@@ -103,31 +79,32 @@ export function MissionPlayer({
             🎉
           </p>
           <h1 className="mt-4 text-3xl font-semibold">Mission Complete</h1>
-          <p className="mt-2 text-neutral-600">Brilliant effort today.</p>
+          <p className="mt-2 text-neutral-600">
+            {summary.learnerName}, {summary.scoreMessage.toLowerCase()}!
+          </p>
           <div className="mt-8 grid grid-cols-2 gap-4">
             <div className="rounded-2xl bg-neutral-100 p-5">
               <p className="text-sm text-neutral-500">Correct</p>
               <p className="text-3xl font-semibold">
-                {mission.correctCount}/{mission.totalQuestions}
+                {summary.correctCount}/{summary.totalQuestions}
               </p>
             </div>
             <div className="rounded-2xl bg-neutral-100 p-5">
               <p className="text-sm text-neutral-500">Accuracy</p>
-              <p className="text-3xl font-semibold">{accuracy}%</p>
+              <p className="text-3xl font-semibold">
+                {summary.accuracyPercent}%
+              </p>
             </div>
             <div className="rounded-2xl bg-neutral-100 p-5">
               <p className="text-sm text-neutral-500">Questions completed</p>
               <p className="text-3xl font-semibold">
-                {mission.answeredCount}/{mission.totalQuestions}
+                {summary.answeredCount}/{summary.totalQuestions}
               </p>
             </div>
             <div className="rounded-2xl bg-neutral-100 p-5">
               <p className="text-sm text-neutral-500">Time</p>
               <p className="text-3xl font-semibold">
-                {recordedMinutes > 0
-                  ? recordedMinutes
-                  : mission.estimatedMinutes}{" "}
-                min
+                {summary.displayMinutes} min
               </p>
             </div>
           </div>
@@ -136,26 +113,27 @@ export function MissionPlayer({
               Subject breakdown
             </p>
             <ul className="mt-3 grid gap-2">
-              {subjectBreakdown.map((subject) => (
+              {summary.subjectBreakdown.map((subject) => (
                 <li
-                  key={subject.subjectName}
+                  key={subject.subjectSlug}
                   className="flex items-center justify-between rounded-xl bg-neutral-50 px-4 py-2 text-sm"
                 >
                   <span>{subject.subjectName}</span>
                   <span className="font-medium">
-                    {subject.correct}/{subject.total}
+                    {subject.correct}/{subject.attempted} ·{" "}
+                    {subject.accuracyPercent}%
                   </span>
                 </li>
               ))}
             </ul>
           </div>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <button
-              onClick={reviewFromStart}
+            <a
+              href={`/learner/mission/review?learner=${mission.learnerId}&mission=${mission.missionId}`}
               className="rounded-xl border px-6 py-3 font-medium"
             >
-              Review answers
-            </button>
+              Review Mistakes
+            </a>
             <a
               className="inline-block rounded-xl bg-neutral-950 px-6 py-3 font-medium text-white"
               href={`/learner/dashboard?learner=${mission.learnerId}`}

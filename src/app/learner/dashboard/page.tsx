@@ -119,6 +119,11 @@ export default async function LearnerDashboard({
             ? `Mission complete · ${mission.correctCount}/${mission.questionCount} correct · ${missionAccuracy}% accuracy`
             : `${mission.answeredCount} answered · ${progressPercent}% complete`}
         </p>
+        {missionComplete && mission.completedAt && (
+          <p className="mt-1 text-sm text-neutral-400">
+            Completed {formatCompletedAt(mission.completedAt)}
+          </p>
+        )}
         <Link
           href={`/learner/mission?learner=${profile.id}&mission=${mission.missionId}`}
           prefetch={false}
@@ -177,4 +182,13 @@ export default async function LearnerDashboard({
       </section>
     </main>
   );
+}
+
+const completedAtFormatter = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatCompletedAt(completedAt: string): string {
+  return completedAtFormatter.format(new Date(completedAt));
 }

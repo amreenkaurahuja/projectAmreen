@@ -54,7 +54,13 @@ describe("MissionPlayer resume regression", () => {
   it("opens question 2 of 16 when the server supplies initialIndex=1, and does not fall back to question 1", () => {
     const mission = buildMission([1]);
 
-    render(<MissionPlayer initialMission={mission} initialIndex={1} />);
+    render(
+      <MissionPlayer
+        initialMission={mission}
+        initialIndex={1}
+        learnerName="Amelia"
+      />,
+    );
 
     expect(screen.getByText("Question 2 of 16")).toBeInTheDocument();
     expect(screen.getByText("Prompt for question 2")).toBeInTheDocument();
@@ -65,7 +71,13 @@ describe("MissionPlayer resume regression", () => {
   it("opens question 6 of 16 when the server supplies initialIndex=5", () => {
     const mission = buildMission([1, 2, 3, 4, 5]);
 
-    render(<MissionPlayer initialMission={mission} initialIndex={5} />);
+    render(
+      <MissionPlayer
+        initialMission={mission}
+        initialIndex={5}
+        learnerName="Amelia"
+      />,
+    );
 
     expect(screen.getByText("Question 6 of 16")).toBeInTheDocument();
     expect(screen.getByText("Prompt for question 6")).toBeInTheDocument();
@@ -74,7 +86,13 @@ describe("MissionPlayer resume regression", () => {
   it("still opens question 1 of 16 when the server supplies initialIndex=0", () => {
     const mission = buildMission([]);
 
-    render(<MissionPlayer initialMission={mission} initialIndex={0} />);
+    render(
+      <MissionPlayer
+        initialMission={mission}
+        initialIndex={0}
+        learnerName="Amelia"
+      />,
+    );
 
     expect(screen.getByText("Question 1 of 16")).toBeInTheDocument();
   });
@@ -82,10 +100,17 @@ describe("MissionPlayer resume regression", () => {
   it("shows the completion screen when the server supplies initialIndex=16", () => {
     const mission = buildMission(Array.from({ length: 16 }, (_, i) => i + 1));
 
-    render(<MissionPlayer initialMission={mission} initialIndex={16} />);
+    render(
+      <MissionPlayer
+        initialMission={mission}
+        initialIndex={16}
+        learnerName="Amelia"
+      />,
+    );
 
     expect(
       screen.getByRole("heading", { name: "Mission Complete" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Review Mistakes")).toBeInTheDocument();
   });
 });
