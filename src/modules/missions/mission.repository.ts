@@ -62,7 +62,9 @@ export class SupabaseMissionRepository implements MissionRepository {
     const missionDate = todayUtc();
     const { data, error } = await this.supabase
       .from("missions")
-      .select("id,learner_id,mission_date,status,estimated_minutes")
+      .select(
+        "id,learner_id,mission_date,status,estimated_minutes,completed_at",
+      )
       .eq("learner_id", learnerId)
       .eq("mission_date", missionDate)
       .maybeSingle();
@@ -119,6 +121,7 @@ export class SupabaseMissionRepository implements MissionRepository {
       estimatedMinutes: data.estimated_minutes,
       answeredCount: answeredItemIds.size,
       correctCount: correctItemIds.size,
+      completedAt: data.completed_at,
     };
   }
 
@@ -176,6 +179,7 @@ export class SupabaseMissionRepository implements MissionRepository {
       estimatedMinutes: data.estimated_minutes,
       answeredCount: 0,
       correctCount: 0,
+      completedAt: null,
     };
   }
 

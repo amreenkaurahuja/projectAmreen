@@ -17,6 +17,7 @@ describe("mission service", () => {
       estimatedMinutes: 20,
       answeredCount: 3,
       correctCount: 2,
+      completedAt: null,
     };
 
     const repository = {
@@ -44,6 +45,7 @@ describe("mission service", () => {
       estimatedMinutes: 20,
       answeredCount: 0,
       correctCount: 0,
+      completedAt: null,
     };
 
     let lookupCount = 0;
