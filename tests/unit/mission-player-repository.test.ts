@@ -67,13 +67,18 @@ describe("SupabaseMissionPlayerRepository.getMissionRecord", () => {
 
 describe("SupabaseMissionPlayerRepository.upsertAttempt", () => {
   it("upserts on mission_item_id so a repeated answer updates the same row", async () => {
-    const upsert = vi.fn(async () => ({ error: null }));
+    const single = vi.fn(async () => ({
+      data: { id: "attempt-1", answered_at: "2026-07-21T00:00:00.000Z" },
+      error: null,
+    }));
+    const select = vi.fn(() => ({ single }));
+    const upsert = vi.fn(() => ({ select }));
     const supabase = {
       from: vi.fn(() => ({ upsert })),
     };
 
     const repository = new SupabaseMissionPlayerRepository(supabase as never);
-    await repository.upsertAttempt({
+    const result = await repository.upsertAttempt({
       missionItemId: "item-1",
       questionId: "question-1",
       optionId: "option-1",
@@ -88,6 +93,10 @@ describe("SupabaseMissionPlayerRepository.upsertAttempt", () => {
       }),
       { onConflict: "mission_item_id" },
     );
+    expect(result).toEqual({
+      attemptId: "attempt-1",
+      answeredAt: "2026-07-21T00:00:00.000Z",
+    });
   });
 });
 

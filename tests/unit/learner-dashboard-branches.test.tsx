@@ -65,7 +65,15 @@ function mockSupabase(
       switch (table) {
         case "learners": {
           if (overrides.learnersSequence) {
-            const data = overrides.learnersSequence[learnersCallCount];
+            // Both the mission service's and the mastery service's ownership
+            // checks query "learners" independently — once the sequence's
+            // explicit entries are exhausted, later calls reuse the last one
+            // rather than reading past the end of the array.
+            const index = Math.min(
+              learnersCallCount,
+              overrides.learnersSequence.length - 1,
+            );
+            const data = overrides.learnersSequence[index];
             learnersCallCount += 1;
             return builder({ data, error: null });
           }
@@ -118,6 +126,8 @@ function mockSupabase(
             })),
             error: null,
           });
+        case "learner_skill_mastery":
+          return builder({ data: [], error: null });
         default:
           throw new Error(`Unexpected table: ${table}`);
       }

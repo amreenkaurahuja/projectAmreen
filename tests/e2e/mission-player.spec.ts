@@ -180,6 +180,32 @@ test.describe("mission player", () => {
     ).not.toBeVisible();
   });
 
+  test("dashboard shows the learning profile after completing a mission", async ({
+    page,
+  }) => {
+    await goToLearnerDashboard(page);
+    await page
+      .getByRole("link", {
+        name: /start mission|resume mission|review mission/i,
+      })
+      .click();
+    await page.waitForURL(/\/learner\/mission\?/);
+
+    await completeAllQuestions(page);
+    await expect(
+      page.getByRole("heading", { name: "Mission Complete" }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: /return to dashboard/i }).click();
+    await page.waitForURL(/\/learner\/dashboard\?learner=/);
+
+    await expect(
+      page.getByRole("heading", { name: "Learning Profile" }),
+    ).toBeVisible();
+    await expect(page.getByText("Overall Mastery")).toBeVisible();
+    await expect(page.getByText("Questions Answered")).toBeVisible();
+  });
+
   test("review mistakes shows only incorrect answers, or a perfect score", async ({
     page,
   }) => {

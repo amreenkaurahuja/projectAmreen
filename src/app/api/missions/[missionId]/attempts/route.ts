@@ -11,6 +11,8 @@ import {
   MissionPlayerService,
 } from "@/modules/missions/mission-player.service";
 import { SupabaseMissionPlayerRepository } from "@/modules/missions/mission-player.repository";
+import { MasteryService } from "@/modules/learning-profile/mastery.service";
+import { SupabaseMasteryRepository } from "@/modules/learning-profile/mastery.repository";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/observability/logger";
 import { withApiObservability } from "@/lib/observability/api";
@@ -64,13 +66,18 @@ export const POST = withApiObservability<{
     const repository = new SupabaseMissionPlayerRepository(
       supabase as SupabaseClient,
     );
-    const service = new MissionPlayerService(repository);
+    const masteryRepository = new SupabaseMasteryRepository(
+      supabase as SupabaseClient,
+    );
+    const masteryService = new MasteryService(masteryRepository);
+    const service = new MissionPlayerService(repository, masteryService);
     const result = await service.submitAnswer({
       learnerId: parsedBody.data.learnerId,
       missionId: parsedParams.data.missionId,
       missionItemId: parsedBody.data.missionItemId,
       optionId: parsedBody.data.optionId,
       responseMs: parsedBody.data.responseMs,
+      requestId,
     });
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

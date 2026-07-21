@@ -11,6 +11,7 @@ Day-to-day tracking lives on the **Project Amreen MVP** GitHub Project board: ht
 - **Phase 4** — mission completion screen (score, accuracy, time, per-subject breakdown, score-tier messaging), a dedicated Review Mistakes screen, and the dashboard's completed-mission state.
 - **Epic 4** — Husky pre-commit hook (`lint-staged` + full lint/typecheck) on top of the Prettier/ESLint already in place from Phase 0.
 - **Epic 5** — Sentry error tracking, structured logging, and request IDs for every `/api/**` route.
+- **Phase 5.1** — deterministic, non-AI mastery/confidence engine (`learner_skill_mastery`), idempotent processing hooked into answer submission, a review-scheduling date per skill, and a small "Learning Profile" section on `/learner/dashboard`. Includes a same-branch follow-up (`0008_backfill_question_skill.sql`) making `question_bank.skill_id` mandatory, closing a gap where a topic gaining a second skill would have silently broken mastery tracking for it. See `docs/Architecture.md` → "Learning profile & mastery" for the algorithm and known v1 limitations.
 
 See `docs/ReleaseNotes.md` for the detailed, chronological version of the above, including the production bugs found and fixed along the way.
 
@@ -18,8 +19,8 @@ See `docs/ReleaseNotes.md` for the detailed, chronological version of the above,
 
 These correspond 1:1 to the cards seeded on the GitHub Project board, in the order they were seeded (not yet prioritized against each other):
 
-1. **Adaptive Learning Engine** — vary question selection/difficulty per learner based on past performance, instead of the current fixed subject-count interleave (`mission.generator.ts`).
-2. **Parent Dashboard** — a real reporting surface for parents (multi-learner overview, trends over time, subject strengths/weaknesses), beyond today's single "today's mission" card on `/learner/dashboard`.
+1. **Adaptive Learning Engine** — vary question selection/difficulty per learner based on past performance, instead of the current fixed subject-count interleave (`mission.generator.ts`). Phase 5.1's `learner_skill_mastery` data exists for this to read from, but nothing yet uses it to influence question selection.
+2. **Parent Dashboard** — a real reporting surface for parents (multi-learner overview, trends over time, subject strengths/weaknesses), beyond today's single "today's mission" card on `/learner/dashboard`. Phase 5.1 added a minimal learner-facing profile section only; a parent-facing view is still open. Historical trend needs the planned `mastery_history` table (design sketched in `docs/Architecture.md` → "Planned: `mastery_history`", not yet built) since today's `learner_skill_mastery` is current-state only.
 3. **AI Feedback** — generated, per-mistake feedback beyond the static `question_bank.explanation` text already shown on the Review Mistakes screen.
 4. **Gamification** — streaks, badges, or similar motivation mechanics layered on top of mission completion.
 5. **Analytics** — usage/outcome analytics, most likely event tracking plus the aggregation needed to feed the Parent Dashboard and Adaptive Learning Engine.

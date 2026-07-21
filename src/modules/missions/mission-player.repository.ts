@@ -67,7 +67,7 @@ export interface MissionPlayerRepository {
     optionId: string;
     isCorrect: boolean;
     responseMs: number;
-  }): Promise<void>;
+  }): Promise<{ attemptId: string; answeredAt: string }>;
   countAttempts(missionId: string): Promise<AttemptCounts>;
   updateMissionStatus(params: {
     missionId: string;
@@ -304,24 +304,31 @@ export class SupabaseMissionPlayerRepository implements MissionPlayerRepository 
     optionId: string;
     isCorrect: boolean;
     responseMs: number;
-  }): Promise<void> {
-    const { error } = await this.supabase.from("question_attempts").upsert(
-      {
-        mission_item_id: params.missionItemId,
-        question_id: params.questionId,
-        selected_option_id: params.optionId,
-        is_correct: params.isCorrect,
-        response_ms: params.responseMs,
-        answered_at: new Date().toISOString(),
-      },
-      { onConflict: "mission_item_id" },
-    );
+  }): Promise<{ attemptId: string; answeredAt: string }> {
+    const answeredAt = new Date().toISOString();
+    const { data, error } = await this.supabase
+      .from("question_attempts")
+      .upsert(
+        {
+          mission_item_id: params.missionItemId,
+          question_id: params.questionId,
+          selected_option_id: params.optionId,
+          is_correct: params.isCorrect,
+          response_ms: params.responseMs,
+          answered_at: answeredAt,
+        },
+        { onConflict: "mission_item_id" },
+      )
+      .select("id,answered_at")
+      .single();
 
     if (error) {
       throw new MissionRepositoryError(
         `Unable to save attempt: ${error.message}`,
       );
     }
+
+    return { attemptId: data.id, answeredAt: data.answered_at };
   }
 
   async countAttempts(missionId: string): Promise<AttemptCounts> {

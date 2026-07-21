@@ -6,6 +6,8 @@ import { getCurriculumSubjects } from "@/lib/curriculum/catalogue";
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseMissionRepository } from "@/modules/missions/mission.repository";
 import { MissionService } from "@/modules/missions/mission.service";
+import { SupabaseMasteryRepository } from "@/modules/learning-profile/mastery.repository";
+import { MasteryService } from "@/modules/learning-profile/mastery.service";
 
 const learnerIdSchema = z.string().uuid();
 
@@ -41,21 +43,30 @@ export default async function LearnerDashboard({
 
   const repository = new SupabaseMissionRepository(supabase as never);
   const missionService = new MissionService(repository);
+  const masteryService = new MasteryService(
+    new SupabaseMasteryRepository(supabase as never),
+  );
 
-  const [{ data: profile }, subjects, { data: progressRows }, mission] =
-    await Promise.all([
-      supabase
-        .from("learners")
-        .select("id,display_name,school_year,exam_target")
-        .eq("id", learnerId)
-        .single(),
-      getCurriculumSubjects(),
-      supabase
-        .from("learner_subject_progress")
-        .select("subject_id,progress_percent,skills_mastered")
-        .eq("learner_id", learnerId),
-      missionService.getOrCreateTodaysMission(learnerId),
-    ]);
+  const [
+    { data: profile },
+    subjects,
+    { data: progressRows },
+    mission,
+    learningProfile,
+  ] = await Promise.all([
+    supabase
+      .from("learners")
+      .select("id,display_name,school_year,exam_target")
+      .eq("id", learnerId)
+      .single(),
+    getCurriculumSubjects(),
+    supabase
+      .from("learner_subject_progress")
+      .select("subject_id,progress_percent,skills_mastered")
+      .eq("learner_id", learnerId),
+    missionService.getOrCreateTodaysMission(learnerId),
+    masteryService.getLearnerProfileSummary(learnerId),
+  ]);
 
   if (!profile) notFound();
 
@@ -136,6 +147,64 @@ export default async function LearnerDashboard({
               : "Resume Mission"}{" "}
           →
         </Link>
+      </section>
+
+      <section className="mt-9" aria-labelledby="learning-profile-heading">
+        <div>
+          <p className="text-sm font-medium tracking-wide text-neutral-500 uppercase">
+            Your progress
+          </p>
+          <h2 id="learning-profile-heading" className="text-2xl font-semibold">
+            Learning Profile
+          </h2>
+        </div>
+
+        {learningProfile.hasData ? (
+          <dl className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border p-4">
+              <dt className="text-sm text-neutral-500">Overall Mastery</dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {learningProfile.overallMasteryScore}%
+              </dd>
+            </div>
+            <div className="rounded-2xl border p-4">
+              <dt className="text-sm text-neutral-500">Accuracy</dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {learningProfile.overallAccuracy}%
+              </dd>
+            </div>
+            <div className="rounded-2xl border p-4">
+              <dt className="text-sm text-neutral-500">Questions Answered</dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {learningProfile.totalQuestionsAnswered}
+              </dd>
+            </div>
+            <div className="rounded-2xl border p-4">
+              <dt className="text-sm text-neutral-500">Strongest Subject</dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {learningProfile.strongestSubject?.subjectName ?? "—"}
+              </dd>
+            </div>
+            <div className="rounded-2xl border p-4">
+              <dt className="text-sm text-neutral-500">Focus Area</dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {learningProfile.weakestSubject?.subjectName ?? "—"}
+              </dd>
+            </div>
+            <div className="rounded-2xl border p-4">
+              <dt className="text-sm text-neutral-500">
+                Skills Due for Review
+              </dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {learningProfile.skillsDueForReview.length}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="mt-5 rounded-2xl border p-5 text-neutral-600">
+            Complete your first mission to start building your learning profile.
+          </p>
+        )}
       </section>
 
       <section className="mt-9">
