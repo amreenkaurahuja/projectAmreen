@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/require-user";
 import { getCurriculumSubjects } from "@/lib/curriculum/catalogue";
+import { withApiObservability } from "@/lib/observability/api";
 
-export async function GET() {
+export const GET = withApiObservability("GET /api/curriculum", async () => {
   try {
     await requireUser();
     const subjects = await getCurriculumSubjects();
@@ -10,4 +11,4 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
-}
+});

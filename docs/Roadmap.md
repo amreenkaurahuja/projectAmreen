@@ -9,6 +9,8 @@ Day-to-day tracking lives on the **Project Amreen MVP** GitHub Project board: ht
 - **Phase 2** — curriculum catalogue (subjects/topics/skills/objectives) as shared, read-only, seeded content.
 - **Phase 3A** — daily mission generation (16 questions, interleaved across 4 subjects), answer persistence, resume-at-first-unanswered-question.
 - **Phase 4** — mission completion screen (score, accuracy, time, per-subject breakdown, score-tier messaging), a dedicated Review Mistakes screen, and the dashboard's completed-mission state.
+- **Epic 4** — Husky pre-commit hook (`lint-staged` + full lint/typecheck) on top of the Prettier/ESLint already in place from Phase 0.
+- **Epic 5** — Sentry error tracking, structured logging, and request IDs for every `/api/**` route.
 
 See `docs/ReleaseNotes.md` for the detailed, chronological version of the above, including the production bugs found and fixed along the way.
 
@@ -26,8 +28,8 @@ These correspond 1:1 to the cards seeded on the GitHub Project board, in the ord
 
 ## Known gaps (not epics, but tracked)
 
-- **Test coverage threshold**: `npm run test:coverage` currently fails the repo's own 80/70/80/80 thresholds (mostly untested Server Component pages and `catalogue.ts`) — pre-existing before Phase 4, not blocking `main` since `quality`'s required check runs `test`, not `test:coverage`. Should be closed before it grows further.
 - **Preview environment isolation**: Preview and Production Vercel deployments currently share one Supabase project (see `docs/ENVIRONMENTS.md`). Worth a dedicated preview/staging Supabase project once real learner data exists.
+- **No live Sentry project configured yet**: the SDK is wired up (see `docs/Architecture.md` → "Observability") but `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` aren't set anywhere yet, so it's a safe no-op rather than actually reporting errors. Create a Sentry project and set those env vars in Vercel to turn it on.
 
 ## Process
 

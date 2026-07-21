@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { withApiObservability } from "@/lib/observability/api";
 
-export function GET() {
+export const GET = withApiObservability("GET /api/health", async () => {
   return NextResponse.json(
     {
       status: "ok",
@@ -9,4 +10,4 @@ export function GET() {
     },
     { status: 200 },
   );
-}
+});

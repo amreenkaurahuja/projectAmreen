@@ -24,3 +24,8 @@ Production secrets live only in Vercel/Supabase secret stores. Never commit `.en
 - `APP_ENV`
 
 `SUPABASE_SERVICE_ROLE_KEY` is **not** consumed by the Next.js runtime — it is required only by the local `scripts/seedQuestions.ts` question-seeding script (validated separately in `scripts/env.ts`) and must never be set in Vercel project environment variables.
+
+## Optional variables
+
+- `SENTRY_DSN` — server-side error tracking (`src/instrumentation.ts`). Unset by default; Sentry is a safe no-op without it, so this is not required to build or run the app.
+- `NEXT_PUBLIC_SENTRY_DSN` — client-side error tracking (`src/instrumentation-client.ts`). Same no-op-if-unset behavior. This one is bundled into client-side JS like any other `NEXT_PUBLIC_*` variable, so treat the DSN itself as non-secret (Sentry DSNs are designed to be public) — the actual project access control lives in Sentry, not in keeping this value hidden.

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -10,6 +11,8 @@ import { MissionPlayerService } from "@/modules/missions/mission-player.service"
 import { SupabaseMissionCompletionRepository } from "@/modules/missions/mission-completion.repository";
 import { MissionCompletionService } from "@/modules/missions/mission-completion.service";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/observability/logger";
+import { withApiObservability } from "@/lib/observability/api";
 
 const paramsSchema = z.object({
   missionId: z.string().uuid(),
@@ -19,10 +22,11 @@ const querySchema = z.object({
   learner: z.string().uuid(),
 });
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ missionId: string }> },
-) {
+const ROUTE_NAME = "GET /api/missions/[missionId]/summary";
+
+export const GET = withApiObservability<{
+  params: Promise<{ missionId: string }>;
+}>(ROUTE_NAME, async (request, { params }, requestId) => {
   const parsedParams = paramsSchema.safeParse(await params);
   const url = new URL(request.url);
   const parsedQuery = querySchema.safeParse({
@@ -65,10 +69,16 @@ export async function GET(
       return NextResponse.json({ error: "Mission not found" }, { status: 404 });
     }
 
-    console.error("Failed to load mission summary", error);
+    Sentry.captureException(error, {
+      tags: { request_id: requestId, route: ROUTE_NAME },
+    });
+    logger.error("api.missions.summary.failed", {
+      requestId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
     );
   }
-}
+});

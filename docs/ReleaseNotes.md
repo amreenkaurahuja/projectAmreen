@@ -2,6 +2,16 @@
 
 Dates reflect commit history on `main`. Each entry is a shipped phase/epic, not an individual commit — see `git log` for the full detail.
 
+## Epic 5 — Monitoring (2026-07-21, `feature/mission-completion`, unreleased)
+
+- Sentry (`@sentry/nextjs`) wired up via `src/instrumentation.ts` (server) and `src/instrumentation-client.ts` (browser), following this Next.js version's actual instrumentation file conventions rather than assuming Sentry's older setup docs apply — see `docs/Architecture.md` → "Observability". Safe no-op without `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` set.
+- Basic structured logging (`src/lib/observability/logger.ts`) — single-line JSON to `console.*`, no external shipper.
+- Request IDs for every `/api/**` route via `withApiObservability` (`src/lib/observability/api.ts`): generated or reused from an incoming `x-request-id` header, echoed on the response, logged on every request, and attached to any Sentry report from that request.
+
+## Epic 4 — Developer tooling (2026-07-21, `feature/mission-completion`, unreleased)
+
+- Husky pre-commit hook (`.husky/pre-commit`): `npx lint-staged` (Prettier + `eslint --fix` on staged files) then the full `npm run lint` and `npm run typecheck`. Prettier and ESLint were already configured from Phase 0.
+
 ## Phase 4 — Mission completion, review & dashboard state (2026-07-21, `feature/mission-completion`, unreleased)
 
 - Completion screen: learner name, correct/total, accuracy %, questions completed, recorded time (or estimated minutes if no response time was recorded), per-subject breakdown, and a score-tier message (Outstanding work / Great job / Good effort / Keep practising).

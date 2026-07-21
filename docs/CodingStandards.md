@@ -6,7 +6,9 @@
 npm run validate
 ```
 
-Runs, in order: `format:check`, `lint`, `typecheck`, `test`, `build`. This is exactly what the `quality` job in `.github/workflows/ci.yml` runs on every PR (a separate `e2e` job runs Playwright after it). Both are required status checks on `main` — a PR can't merge until they're green. Fix failures locally before pushing; don't rely on CI to discover them first.
+Runs, in order: `format:check`, `lint`, `typecheck`, `test:coverage`, `build`. This matches exactly what the `quality` job in `.github/workflows/ci.yml` runs on every PR (a separate `e2e` job runs Playwright after it) — `validate` uses `test:coverage`, not plain `test`, specifically so a local pass actually predicts a CI pass instead of missing the coverage-threshold gate. Both `quality` and `e2e` are required status checks on `main` — a PR can't merge until they're green. Fix failures locally before pushing; don't rely on CI to discover them first.
+
+A Husky pre-commit hook (`.husky/pre-commit`) also runs on every `git commit`: `npx lint-staged` (Prettier + `eslint --fix`, scoped to staged files only) followed by the full `npm run lint` and `npm run typecheck`. This catches most issues before they're even pushed. Don't bypass it with `git commit --no-verify` to work around a real failure — fix the failure.
 
 ## TypeScript
 
@@ -41,6 +43,13 @@ Rules that follow from this:
 
 - Domain errors are typed exception classes, not string codes: `MissionRepositoryError` as the base, with `MissionAccessError`, `MissionNotFoundError`, `MissionDuplicateError`, `MissionQuestionBankError`, `MissionOptionInvalidError` extending it per failure mode. Repositories throw these; services propagate them; routes/pages `catch` and map to the right HTTP status or `redirect()`/`notFound()`. Don't throw a bare `Error` from a repository/service if a typed one already exists for that case.
 - A repository only wraps a real Postgrest `error` — never swallow it silently and return `null`/`[]`, since that hides real failures as "no data".
+
+## Observability
+
+- Every `/api/**` route handler is exported wrapped in `withApiObservability("<METHOD> <path>", handler)` (`src/lib/observability/api.ts`) — request id assignment/propagation, structured start/completion logs, and a safety-net 500+Sentry-report for anything that escapes the route's own error handling all come from the wrapper, not from each route reimplementing it.
+- Use `logger.info/warn/error(message, context)` from `src/lib/observability/logger.ts` for structured logs — never a bare `console.log`. `message` should be a short, stable, dot-namespaced string (`api.missions.attempts.failed`), not a one-off sentence; put the variable detail in `context`.
+- Only report genuinely unexpected failures to Sentry (`Sentry.captureException`) — a route's own generic-500 branch is the right place, not its 400/401/403/404 branches. Sentry noise from expected client errors makes real regressions harder to spot.
+- `Sentry.init` in `src/instrumentation.ts`/`instrumentation-client.ts` is a safe no-op without `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` set — don't add code that assumes Sentry is actually configured (e.g. don't gate real functionality behind whether an event successfully sent).
 
 ## Validation at boundaries
 
