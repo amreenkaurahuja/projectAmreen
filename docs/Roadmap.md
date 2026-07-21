@@ -30,7 +30,7 @@ These correspond 1:1 to the cards seeded on the GitHub Project board, in the ord
 ## Known gaps (not epics, but tracked)
 
 - **Preview environment isolation**: Preview and Production Vercel deployments currently share one Supabase project (see `docs/ENVIRONMENTS.md`). Worth a dedicated preview/staging Supabase project once real learner data exists.
-- **No live Sentry project configured yet**: the SDK is wired up (see `docs/Architecture.md` → "Observability") but `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` aren't set anywhere yet, so it's a safe no-op rather than actually reporting errors. Create a Sentry project and set those env vars in Vercel to turn it on.
+- **No live Sentry project configured yet**: the SDK is wired up (see `docs/Architecture.md` → "Observability") but stays inert until `SENTRY_ENABLED`/`NEXT_PUBLIC_SENTRY_ENABLED` is explicitly set to `"true"` (a DSN alone isn't enough). Create a Sentry project, set the DSN and `*_ENABLED` env vars in Vercel to turn it on.
 
 ## Process
 
