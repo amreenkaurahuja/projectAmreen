@@ -2,6 +2,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "arithmetic",
+    "skillCode": "MATH-ARI-01",
     "prompt": "What is 245 + 378?",
     "explanation": "245 + 378 = 623.",
     "difficulty": 1,
@@ -27,6 +28,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "arithmetic",
+    "skillCode": "MATH-ARI-01",
     "prompt": "What is 900 - 467?",
     "explanation": "900 - 467 = 433.",
     "difficulty": 1,
@@ -52,6 +54,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "arithmetic",
+    "skillCode": "MATH-ARI-01",
     "prompt": "What is 24 × 7?",
     "explanation": "24 × 7 = 168.",
     "difficulty": 1,
@@ -77,6 +80,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "arithmetic",
+    "skillCode": "MATH-ARI-01",
     "prompt": "What is 864 ÷ 8?",
     "explanation": "864 divided by 8 is 108.",
     "difficulty": 2,
@@ -102,6 +106,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "number-and-place-value",
+    "skillCode": "MATH-NPV-01",
     "prompt": "Which number is greatest?",
     "explanation": "5,405 is greater than 5,045, 5,450 and 5,054? Check carefully: 5,450 is greatest.",
     "difficulty": 2,
@@ -127,6 +132,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "number-and-place-value",
+    "skillCode": "MATH-NPV-01",
     "prompt": "What is the value of the 7 in 47,219?",
     "explanation": "The 7 is in the thousands place, so its value is 7,000.",
     "difficulty": 1,
@@ -152,6 +158,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "arithmetic",
+    "skillCode": "MATH-ARI-01",
     "prompt": "What is 3/4 of 60?",
     "explanation": "60 ÷ 4 × 3 = 45.",
     "difficulty": 2,
@@ -177,6 +184,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "arithmetic",
+    "skillCode": "MATH-ARI-01",
     "prompt": "Which decimal is equal to 3/10?",
     "explanation": "Three tenths is written as 0.3.",
     "difficulty": 1,
@@ -202,6 +210,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "problem-solving",
+    "skillCode": "MATH-PS-01",
     "prompt": "A book costs £7.50. How much do 4 books cost?",
     "explanation": "£7.50 × 4 = £30.",
     "difficulty": 2,
@@ -227,6 +236,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "geometry-and-measures",
+    "skillCode": "MATH-GM-01",
     "prompt": "A rectangle is 8 cm long and 5 cm wide. What is its perimeter?",
     "explanation": "Perimeter = 8 + 5 + 8 + 5 = 26 cm.",
     "difficulty": 2,
@@ -252,6 +262,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "geometry-and-measures",
+    "skillCode": "MATH-GM-01",
     "prompt": "How many degrees are in a right angle?",
     "explanation": "A right angle is 90 degrees.",
     "difficulty": 1,
@@ -277,6 +288,7 @@
   {
     "subjectSlug": "mathematics",
     "topicSlug": "problem-solving",
+    "skillCode": "MATH-PS-01",
     "prompt": "A train leaves at 09:35 and arrives at 11:05. How long is the journey?",
     "explanation": "From 09:35 to 10:35 is 1 hour, then 30 minutes to 11:05: 1 hour 30 minutes.",
     "difficulty": 3,
@@ -302,6 +314,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "vocabulary",
+    "skillCode": "ENG-VOC-01",
     "prompt": "Which word is closest in meaning to “rapid”?",
     "explanation": "Rapid means fast or quick.",
     "difficulty": 1,
@@ -327,6 +340,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "vocabulary",
+    "skillCode": "ENG-VOC-01",
     "prompt": "Which word is the opposite of “scarce”?",
     "explanation": "Scarce means limited; abundant means plentiful.",
     "difficulty": 2,
@@ -352,6 +366,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "grammar-and-punctuation",
+    "skillCode": "ENG-GP-01",
     "prompt": "Choose the sentence with correct punctuation.",
     "explanation": "A comma follows the introductory phrase, and the sentence ends with a full stop.",
     "difficulty": 2,
@@ -377,6 +392,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "grammar-and-punctuation",
+    "skillCode": "ENG-GP-01",
     "prompt": "Which word is an adverb in: “The athlete ran swiftly”?",
     "explanation": "Swiftly describes how the athlete ran, so it is an adverb.",
     "difficulty": 1,
@@ -402,6 +418,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "reading-comprehension",
+    "skillCode": "ENG-RC-01",
     "prompt": "“Maya clutched her umbrella as dark clouds gathered.” What can we infer?",
     "explanation": "The dark clouds and umbrella suggest that Maya expects rain.",
     "difficulty": 2,
@@ -427,6 +444,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "vocabulary",
+    "skillCode": "ENG-VOC-01",
     "prompt": "Choose the best word: “The scientist made a ___ observation.”",
     "explanation": "A careful observation is precise and thorough.",
     "difficulty": 2,
@@ -452,6 +470,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "grammar-and-punctuation",
+    "skillCode": "ENG-GP-01",
     "prompt": "Which sentence uses an apostrophe correctly?",
     "explanation": "The apostrophe shows that the bicycle belongs to one girl.",
     "difficulty": 2,
@@ -477,6 +496,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "reading-comprehension",
+    "skillCode": "ENG-RC-01",
     "prompt": "What is the purpose of a heading in an information text?",
     "explanation": "A heading tells the reader what the following section is about.",
     "difficulty": 1,
@@ -502,6 +522,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "vocabulary",
+    "skillCode": "ENG-VOC-01",
     "prompt": "Which word best completes: “The ancient vase was extremely ___, so we handled it gently.”",
     "explanation": "Fragile means easily broken.",
     "difficulty": 2,
@@ -527,6 +548,7 @@
   {
     "subjectSlug": "english",
     "topicSlug": "grammar-and-punctuation",
+    "skillCode": "ENG-GP-01",
     "prompt": "Which is a complex sentence?",
     "explanation": "It contains a main clause and a subordinate clause beginning with “because”.",
     "difficulty": 2,
@@ -552,6 +574,7 @@
   {
     "subjectSlug": "verbal-reasoning",
     "topicSlug": "word-relationships",
+    "skillCode": "VR-WR-01",
     "prompt": "Bird is to nest as bee is to ___.",
     "explanation": "A bird lives in a nest; a bee lives in a hive.",
     "difficulty": 1,
@@ -577,6 +600,7 @@
   {
     "subjectSlug": "verbal-reasoning",
     "topicSlug": "word-relationships",
+    "skillCode": "VR-WR-01",
     "prompt": "Which word does not belong: apple, pear, carrot, plum?",
     "explanation": "Carrot is a vegetable; the others are fruits.",
     "difficulty": 1,
@@ -602,6 +626,7 @@
   {
     "subjectSlug": "verbal-reasoning",
     "topicSlug": "letter-and-number-codes",
+    "skillCode": "VR-CODE-01",
     "prompt": "If CAT becomes DBU, what does DOG become?",
     "explanation": "Each letter moves forward by one: D→E, O→P, G→H.",
     "difficulty": 2,
@@ -627,6 +652,7 @@
   {
     "subjectSlug": "verbal-reasoning",
     "topicSlug": "word-building",
+    "skillCode": "VR-WB-01",
     "prompt": "Which word can be made by adding one letter to “plan”?",
     "explanation": "Adding e makes plane.",
     "difficulty": 2,
@@ -652,6 +678,7 @@
   {
     "subjectSlug": "verbal-reasoning",
     "topicSlug": "verbal-logic",
+    "skillCode": "VR-LOG-01",
     "prompt": "All roses are flowers. Some flowers fade quickly. Which statement must be true?",
     "explanation": "The first statement directly tells us that every rose is a flower.",
     "difficulty": 3,
@@ -677,6 +704,7 @@
   {
     "subjectSlug": "verbal-reasoning",
     "topicSlug": "word-relationships",
+    "skillCode": "VR-WR-01",
     "prompt": "Complete the pair: hot : cold :: ancient : ___.",
     "explanation": "Hot and cold are opposites; ancient and modern are opposites.",
     "difficulty": 2,
@@ -702,6 +730,7 @@
   {
     "subjectSlug": "non-verbal-reasoning",
     "topicSlug": "shape-sequences",
+    "skillCode": "NVR-SEQ-01",
     "prompt": "A shape turns 90° clockwise each step. After four turns, where will it face?",
     "explanation": "Four quarter-turns make one full turn, so it faces the original direction.",
     "difficulty": 2,
@@ -727,6 +756,7 @@
   {
     "subjectSlug": "non-verbal-reasoning",
     "topicSlug": "spatial-reasoning",
+    "skillCode": "NVR-SPA-01",
     "prompt": "Which transformation produces a mirror image?",
     "explanation": "Reflection creates a mirror image.",
     "difficulty": 1,
@@ -752,6 +782,7 @@
   {
     "subjectSlug": "non-verbal-reasoning",
     "topicSlug": "matrices",
+    "skillCode": "NVR-MAT-01",
     "prompt": "In each row, the number of dots increases by one. A row starts with 2 dots, then 3 dots. What comes next?",
     "explanation": "The pattern adds one dot each time, so 4 dots come next.",
     "difficulty": 1,
@@ -777,6 +808,7 @@
   {
     "subjectSlug": "non-verbal-reasoning",
     "topicSlug": "analogies",
+    "skillCode": "NVR-ANA-01",
     "prompt": "A white circle changes to a black circle. Apply the same rule to a white square.",
     "explanation": "Only the shading changes, so the result is a black square.",
     "difficulty": 2,
@@ -802,6 +834,7 @@
   {
     "subjectSlug": "non-verbal-reasoning",
     "topicSlug": "shape-sequences",
+    "skillCode": "NVR-SEQ-01",
     "prompt": "The pattern is triangle, square, triangle, square. What comes next?",
     "explanation": "The two shapes alternate, so triangle comes next.",
     "difficulty": 1,
@@ -827,6 +860,7 @@
   {
     "subjectSlug": "non-verbal-reasoning",
     "topicSlug": "spatial-reasoning",
+    "skillCode": "NVR-SPA-01",
     "prompt": "An arrow points up. It is rotated 180°. Which way does it point?",
     "explanation": "A half-turn changes up to down.",
     "difficulty": 1,

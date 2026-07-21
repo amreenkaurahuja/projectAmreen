@@ -13,6 +13,7 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   subjectSlug: z.string().min(1),
   topicSlug: z.string().min(1),
+  skillCode: z.string().min(1),
   prompt: z.string().min(3).max(1000),
   explanation: z.string().max(1500),
   difficulty: z.number().int().min(1).max(5),
@@ -60,12 +61,18 @@ async function main() {
     .select("id, subject_id, slug");
   if (topicsError) throw topicsError;
 
+  const { data: skills, error: skillsError } = await supabase
+    .from("skills")
+    .select("id, code");
+  if (skillsError) throw skillsError;
+
   const subjectBySlug = new Map(
     subjects.map((subject) => [subject.slug, subject.id]),
   );
   const topicByKey = new Map(
     topics.map((topic) => [`${topic.subject_id}:${topic.slug}`, topic.id]),
   );
+  const skillByCode = new Map(skills.map((skill) => [skill.code, skill.id]));
 
   let seeded = 0;
 
@@ -82,12 +89,18 @@ async function main() {
       );
     }
 
+    const skillId = skillByCode.get(question.skillCode);
+    if (!skillId) {
+      throw new Error(`Skill not found: ${question.skillCode}`);
+    }
+
     const { data: savedQuestion, error: questionError } = await supabase
       .from("question_bank")
       .upsert(
         {
           subject_id: subjectId,
           topic_id: topicId,
+          skill_id: skillId,
           prompt: question.prompt,
           explanation: question.explanation,
           difficulty: question.difficulty,

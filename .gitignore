@@ -48,3 +48,6 @@ test-results/
 # Local environment files
 .env.local
 .env.*.local
+
+.vercel
+.env*

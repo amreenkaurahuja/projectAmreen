@@ -1,3 +1,4 @@
+import { logger } from "@/lib/observability/logger";
 import {
   MissionNotFoundError,
   MissionRepositoryError,
@@ -11,8 +12,29 @@ import type {
 
 export class MissionOptionInvalidError extends MissionRepositoryError {}
 
+/**
+ * Narrow structural interface (not imported from the learning-profile
+ * module) so mission-player stays decoupled from mastery internals —
+ * MasteryService satisfies this shape without either module depending on
+ * the other's concrete types.
+ */
+export interface MasteryProcessor {
+  processQuestionAttempt(params: {
+    learnerId: string;
+    attemptId: string;
+    questionId: string;
+    isCorrect: boolean;
+    responseMs: number | null;
+    answeredAt: Date;
+    requestId?: string;
+  }): Promise<unknown>;
+}
+
 export class MissionPlayerService {
-  constructor(private readonly repository: MissionPlayerRepository) {}
+  constructor(
+    private readonly repository: MissionPlayerRepository,
+    private readonly masteryProcessor?: MasteryProcessor,
+  ) {}
 
   async getMissionForPlayer(
     learnerId: string,
@@ -84,8 +106,9 @@ export class MissionPlayerService {
     missionItemId: string;
     optionId: string;
     responseMs: number;
+    requestId?: string;
   }): Promise<SubmitAnswerResult> {
-    const { learnerId, missionId, missionItemId, optionId } = params;
+    const { learnerId, missionId, missionItemId, optionId, requestId } = params;
     const responseMs = Math.max(0, Math.min(params.responseMs, 3_600_000));
 
     await this.repository.assertLearnerOwned(learnerId);
@@ -113,7 +136,7 @@ export class MissionPlayerService {
       );
     }
 
-    await this.repository.upsertAttempt({
+    const { attemptId, answeredAt } = await this.repository.upsertAttempt({
       missionItemId: item.missionItemId,
       questionId: item.questionId,
       optionId,
@@ -135,6 +158,34 @@ export class MissionPlayerService {
       status,
       completedAt,
     });
+
+    // Answer grading and mission progress are already durably persisted at
+    // this point. Mastery processing must never turn a successful answer
+    // submission into a failed request, so a failure here (defensive —
+    // MasteryService.processQuestionAttempt itself is documented to never
+    // throw) is only logged, not propagated.
+    if (this.masteryProcessor) {
+      try {
+        await this.masteryProcessor.processQuestionAttempt({
+          learnerId,
+          attemptId,
+          questionId: item.questionId,
+          isCorrect: option.isCorrect,
+          responseMs,
+          answeredAt: new Date(answeredAt),
+          requestId,
+        });
+      } catch (error) {
+        logger.error("mission-player.mastery-processing-failed", {
+          requestId,
+          learnerId,
+          missionId,
+          missionItemId,
+          attemptId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     const correctOptionId =
       item.options.find((candidate) => candidate.isCorrect)?.id ?? "";

@@ -112,6 +112,13 @@ Auth required. Returns only the **incorrectly answered** questions (prompt, the 
 **Response** `200` → `MissionReview` (see `mission-completion.types.ts`).
 **Errors**: `400` / `401` / `403` / `404`.
 
+## `GET /api/learners/[learnerId]/mastery-summary`
+
+Auth required. Returns the learner's aggregated learning profile — overall mastery/confidence, total questions answered, correct answers, overall accuracy, average response time, strongest/weakest subject, strongest/weakest skills (max 3 each), skills due for review, and last-practised timestamp. Subject summaries are weighted averages by attempts. Returns a graceful all-`null`/empty shape (`hasData: false`) for a learner with no mastery data yet, rather than an error.
+
+**Response** `200` → `LearnerProfileSummary` (see `mastery.types.ts`).
+**Errors**: `400` invalid learner id · `401` · `403` learner not owned · `500`.
+
 ## `GET /auth/callback?code=<code>`
 
 Not under `/api`. Supabase OAuth/magic-link redirect target — exchanges `code` for a session, then redirects to `/parent/dashboard`. No JSON response.

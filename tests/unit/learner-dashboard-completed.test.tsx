@@ -76,6 +76,8 @@ function mockSupabaseForCompletedMission() {
             })),
             error: null,
           });
+        case "learner_skill_mastery":
+          return builder({ data: [], error: null });
         default:
           throw new Error(`Unexpected table: ${table}`);
       }

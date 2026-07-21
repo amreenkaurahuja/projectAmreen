@@ -60,7 +60,10 @@ function buildRepository(items: MissionItemRecord[]): MissionPlayerRepository {
     getMissionItemForGrading: vi.fn(
       async () => null as MissionItemForGrading | null,
     ),
-    upsertAttempt: vi.fn(async () => undefined),
+    upsertAttempt: vi.fn(async () => ({
+      attemptId: "attempt-1",
+      answeredAt: "2026-07-20T00:00:00.000Z",
+    })),
     countAttempts: vi.fn(async () => ({
       answeredCount: items.filter((item) => item.attempt).length,
       correctCount: items.filter((item) => item.attempt?.isCorrect).length,

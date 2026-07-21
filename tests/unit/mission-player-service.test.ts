@@ -23,7 +23,10 @@ function buildRepository(
     getMissionRecord: vi.fn(async () => null),
     getMissionItems: vi.fn(async () => []),
     getMissionItemForGrading: vi.fn(async () => null),
-    upsertAttempt: vi.fn(async () => undefined),
+    upsertAttempt: vi.fn(async () => ({
+      attemptId: "attempt-1",
+      answeredAt: "2026-07-20T00:00:00.000Z",
+    })),
     countAttempts: vi.fn(async () => ({
       answeredCount: 0,
       correctCount: 0,
@@ -316,7 +319,10 @@ describe("MissionPlayerService.submitAnswer", () => {
   });
 
   it("safely updates the same attempt when an answer changes, without duplicating", async () => {
-    const upsertAttempt = vi.fn(async () => undefined);
+    const upsertAttempt = vi.fn(async () => ({
+      attemptId: "attempt-1",
+      answeredAt: "2026-07-20T00:00:00.000Z",
+    }));
     const repository = buildRepository({
       getMissionRecord: vi.fn(async () => missionRecord),
       getMissionItemForGrading: vi.fn(async () => gradingItem),
@@ -359,7 +365,10 @@ describe("MissionPlayerService.submitAnswer", () => {
   });
 
   it("clamps response time to the supported range", async () => {
-    const upsertAttempt = vi.fn(async () => undefined);
+    const upsertAttempt = vi.fn(async () => ({
+      attemptId: "attempt-1",
+      answeredAt: "2026-07-20T00:00:00.000Z",
+    }));
     const repository = buildRepository({
       getMissionRecord: vi.fn(async () => missionRecord),
       getMissionItemForGrading: vi.fn(async () => gradingItem),
@@ -378,5 +387,81 @@ describe("MissionPlayerService.submitAnswer", () => {
     expect(upsertAttempt).toHaveBeenCalledWith(
       expect.objectContaining({ responseMs: 3_600_000 }),
     );
+  });
+
+  it("hands the persisted attempt off to the mastery processor after grading completes", async () => {
+    const repository = buildRepository({
+      getMissionRecord: vi.fn(async () => missionRecord),
+      getMissionItemForGrading: vi.fn(async () => gradingItem),
+      upsertAttempt: vi.fn(async () => ({
+        attemptId: "attempt-42",
+        answeredAt: "2026-07-20T12:00:00.000Z",
+      })),
+    });
+    const processQuestionAttempt = vi.fn(async () => ({ processed: true }));
+    const service = new MissionPlayerService(repository, {
+      processQuestionAttempt,
+    });
+
+    await service.submitAnswer({
+      learnerId: "learner-1",
+      missionId: "mission-1",
+      missionItemId: "item-1",
+      optionId: "b",
+      responseMs: 2000,
+      requestId: "req-1",
+    });
+
+    expect(processQuestionAttempt).toHaveBeenCalledWith({
+      learnerId: "learner-1",
+      attemptId: "attempt-42",
+      questionId: "question-1",
+      isCorrect: true,
+      responseMs: 2000,
+      answeredAt: new Date("2026-07-20T12:00:00.000Z"),
+      requestId: "req-1",
+    });
+  });
+
+  it("does not fail the answer submission when mastery processing throws", async () => {
+    const repository = buildRepository({
+      getMissionRecord: vi.fn(async () => missionRecord),
+      getMissionItemForGrading: vi.fn(async () => gradingItem),
+    });
+    const processQuestionAttempt = vi.fn(async () => {
+      throw new Error("mastery engine exploded");
+    });
+    const service = new MissionPlayerService(repository, {
+      processQuestionAttempt,
+    });
+
+    const result = await service.submitAnswer({
+      learnerId: "learner-1",
+      missionId: "mission-1",
+      missionItemId: "item-1",
+      optionId: "b",
+      responseMs: 2000,
+    });
+
+    expect(result.isCorrect).toBe(true);
+    expect(processQuestionAttempt).toHaveBeenCalledTimes(1);
+  });
+
+  it("works without a mastery processor configured", async () => {
+    const repository = buildRepository({
+      getMissionRecord: vi.fn(async () => missionRecord),
+      getMissionItemForGrading: vi.fn(async () => gradingItem),
+    });
+    const service = new MissionPlayerService(repository);
+
+    const result = await service.submitAnswer({
+      learnerId: "learner-1",
+      missionId: "mission-1",
+      missionItemId: "item-1",
+      optionId: "b",
+      responseMs: 2000,
+    });
+
+    expect(result.isCorrect).toBe(true);
   });
 });
