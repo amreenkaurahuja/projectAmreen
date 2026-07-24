@@ -2,23 +2,11 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/), grouped by shipped milestone rather than by individual commit — see `docs/ReleaseNotes.md` for the more detailed, chronological version, and `git log` for full commit history.
 
-## v0.6.0 — Adaptive mission generation
+## v0.5.0 — Learning Intelligence (Mastery, Adaptive Missions, Parent Dashboard)
 
-### Added
+A single release boundary covering Phases 5.1–5.3: the deterministic learning-intelligence foundation — mastery scoring, adaptive mission generation, and the Parent Intelligence Dashboard — all non-AI, all independently tested. Everything after this (AI coaching, gamification, exam readiness) builds on this foundation rather than changing it; see `docs/Architecture.md` → "Planned: AI Gateway module" and "Planned: `learning-intelligence` facade" for the architectural decisions made ahead of that next stage.
 
-- Deterministic, explainable adaptive daily mission generator (`src/modules/adaptive-learning/`) replacing the static 8/4/2/2 subject-interleave — questions chosen from weak skills, due reviews, curriculum coverage, and challenge, seeded per learner/date so the same inputs always produce the same mission.
-- A balanced baseline mission path for learners with no mastery data yet.
-- Recent-question cooldown (7 days by default), soft subject balancing, and mastery-driven difficulty targeting.
-- `mission_items.selection_reason` and `missions.generation_strategy`/`generation_metadata` (`0009_phase5_adaptive_missions.sql`) for internal explainability — never exposed to the learner.
-- A small "personalised for your learning" note on the dashboard's mission card.
-
-### Removed
-
-- The old static mission generator (`mission.generator.ts`, `mission.service.ts`) — fully superseded by the adaptive generator.
-
-## v0.5.0 — Learning profile & mastery engine
-
-### Added
+### Added — mastery engine (Phase 5.1)
 
 - Deterministic, explainable, non-AI mastery/confidence scoring per learner per skill (`learner_skill_mastery`), updated after every answered question.
 - Per-skill review scheduling (`next_review_at`), recomputed from the updated mastery score after each attempt.
@@ -26,6 +14,26 @@ All notable changes to this project are documented here. Format loosely follows 
 - Learner profile summary (overall mastery/accuracy, strongest/weakest subjects and skills, skills due for review) via `GET /api/learners/[learnerId]/mastery-summary`.
 - A minimal "Learning Profile" section on `/learner/dashboard`.
 - `scripts/backfill-learning-mastery.ts` (`npm run backfill:learning-mastery`) to compute mastery for questions answered before this feature existed.
+
+### Added — adaptive mission generation (Phase 5.2)
+
+- Deterministic, explainable adaptive daily mission generator (`src/modules/adaptive-learning/`) replacing the static 8/4/2/2 subject-interleave — questions chosen from weak skills, due reviews, curriculum coverage, and challenge, seeded per learner/date so the same inputs always produce the same mission.
+- A balanced baseline mission path for learners with no mastery data yet.
+- Recent-question cooldown (7 days by default), soft subject balancing, and mastery-driven difficulty targeting.
+- `mission_items.selection_reason` and `missions.generation_strategy`/`generation_metadata` (`0009_phase5_adaptive_missions.sql`) for internal explainability — never exposed to the learner.
+- A small "personalised for your learning" note on the dashboard's mission card.
+
+### Added — Parent Intelligence Dashboard (Phase 5.3)
+
+- Per-learner Parent Intelligence Dashboard (`/parent/learners/[learnerId]`, linked from `/parent/dashboard`): overall learning health (mastery, accuracy, questions answered, study time, streak, skills due for review), per-subject insights with qualitative labels (Excellent/Developing/Needs Practice), top-5 strongest/focus skills, a weekly progress table, session history with links back into the existing Review Mistakes screen, and a preview of tomorrow's likely mission focus (skill names only).
+- A deterministic, rule-based recommendation engine (`src/modules/parent-dashboard/recommendation-engine.ts`) — no AI — returning up to 3 recommendations in a fixed priority order.
+- Learning-streak calculation (current/longest/days learned this month) from completed mission history, computed consistently in UTC.
+- `mastery-summary.ts`'s `pickTopSkills`/`buildSubjectSummaries` are now exported and reusable (with an optional `limit` for the former); `SubjectSummary` gained an `averageResponseMs` field — both reused by the new dashboard instead of being duplicated.
+- No new tables for the dashboard — everything is derived from existing `learner_skill_mastery`/`missions`/`mission_items`/`question_attempts` data. See `docs/Architecture.md` → "Parent Intelligence Dashboard" for the metrics, recommendation rules, and known v1 limitations (the weekly "mastery change" and "total study time" figures are approximations pending a real `mastery_history` table).
+
+### Removed
+
+- The old static mission generator (`mission.generator.ts`, `mission.service.ts`) — fully superseded by the adaptive generator.
 
 ### Fixed
 

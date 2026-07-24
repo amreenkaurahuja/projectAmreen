@@ -24,12 +24,12 @@ src/
 
 ### `modules/<domain>/`
 
-Each domain (currently `missions`, `learning-profile`, and `adaptive-learning`) is split into:
+Each domain (currently `missions`, `learning-profile`, `adaptive-learning`, and `parent-dashboard`) is split into:
 
 - **`*.types.ts`** — plain data shapes, no imports of Supabase or Next.js. Safe to import from client components.
 - **`*.repository.ts`** — an interface plus a `Supabase*Repository` implementation. This is the _only_ place that talks to `supabase.from(...)`. Repository methods map Postgres rows to the domain's types and translate Postgres errors into typed domain errors (`MissionAccessError`, `MissionNotFoundError`, `MasteryAccessError`, …).
 - **`*.service.ts`** — orchestrates one or more repositories, enforces ownership/authorization order-of-operations, and contains the actual business rules (e.g. "a mission is complete when every item has an attempt").
-- **`*-calculator.ts` / `*-summary.ts` / `*.calculations.ts`** — pure, framework-agnostic functions with no Supabase import, so the exact same logic (mission scoring, mastery scoring, profile aggregation) can run in a Server Component _and_ in a `"use client"` component without duplicating it or smuggling a database call into the browser bundle. `mission-completion.calculations.ts`, `learning-profile/mastery-calculator.ts`, `learning-profile/mastery-summary.ts`, and `adaptive-learning/adaptive-selector.ts` all follow this pattern.
+- **`*-calculator.ts` / `*-summary.ts` / `*.calculations.ts`** — pure, framework-agnostic functions with no Supabase import, so the exact same logic (mission scoring, mastery scoring, profile aggregation) can run in a Server Component _and_ in a `"use client"` component without duplicating it or smuggling a database call into the browser bundle. `mission-completion.calculations.ts`, `learning-profile/mastery-calculator.ts`, `learning-profile/mastery-summary.ts`, `adaptive-learning/adaptive-selector.ts`, and `parent-dashboard/learning-health.ts` / `recommendation-engine.ts` all follow this pattern.
 
 Pages and route handlers construct `new Supabase<X>Repository(supabase)` and `new <X>Service(repository)` and call the service — they never call `supabase.from(...)` for domain data directly (a couple of pages do a single direct `learners` ownership check inline, matching the pattern already used for the mission pages; this is a deliberate, narrow exception, not general practice).
 
@@ -185,7 +185,79 @@ Unchanged from before — `AdaptiveMissionService` reuses the existing `MissionR
 - No adaptive difficulty _within_ a mission beyond the ranking hints above — categories don't hard-guarantee a perfect difficulty match, by design (a category shouldn't fail just because no ideal-difficulty candidate exists).
 - Subject balancing during fallback is a static per-pick re-scan (recomputed each pick, not a single upfront sort) — fine at 16 slots; would need a smarter structure at a much larger mission size.
 - No use of `learners.school_year`/`exam_target` for candidate filtering — investigated (see below) and found unused by the _previous_ generator too; carrying that forward unchanged rather than introducing new filtering as an incidental part of this phase.
-- `mastery_history` remains undecided/deferred (see above) — Phase 5.3 candidate.
+- `mastery_history` remains undecided/deferred (see above). Phase 5.3 (below) hit a case that would have used it — the parent dashboard's "mastery change" column — and worked around it with an approximation rather than building it, so it's now a Phase 5.4 candidate instead.
+
+## Parent Intelligence Dashboard (Phase 5.3)
+
+`src/modules/parent-dashboard/` turns a learner's existing mastery and mission data into a parent-facing analytics view at `/parent/learners/[learnerId]` (linked from `/parent/dashboard`'s learner list). No new tables, no new tracked data — everything here is read from `learner_skill_mastery`, `missions`, `mission_items`, and `question_attempts`, which Phases 5.1/5.2 already populate.
+
+### Reused services
+
+- `MasteryRepository.getAllMasteryForLearnerEnriched` (Phase 5.1) — the same enriched mastery rows the learner-facing profile uses.
+- `mastery-summary.ts`'s `buildLearnerProfileSummary`, `buildSubjectSummaries`, and `pickTopSkills` — the latter two were made exported (previously module-private) so the dashboard can reuse the exact same subject-aggregation and skill-ranking logic instead of recomputing it; `pickTopSkills` gained an optional `limit` parameter (default 3, unchanged for the learner profile) so the dashboard can ask for its top 5 without forking the function. `SubjectSummary` gained an `averageResponseMs` field for the same reason (the learner profile doesn't use it, the dashboard's subject table does).
+- `mastery-calculator.ts`'s `computeMasteryDelta` — reused as-is for the weekly progress table's approximate mastery-change column (see "Known v1 limitations").
+- `AdaptiveDataRepository.loadCandidateData` + `selectAdaptiveMission` + `DEFAULT_ADAPTIVE_CONFIG` (Phase 5.2) — reused, unmodified, to build "Tomorrow's likely focus" (see below). Nothing about the selector itself changed.
+- `MissionCompletionRepository.getLearnerDisplayName` — reused for the page header instead of a duplicate query.
+- The existing `/learner/mission/review` page — the session history table's "Review" link points straight at it; no new review UI was built.
+
+### Dashboard metrics
+
+- **Overall Learning Health** cards (mastery, accuracy, questions answered, study time, streak, skills due) come from `learning-health.ts`'s `buildLearningHealth`, combining the reused profile summary with a locally-computed streak and an approximate total study time (`averageResponseMs × totalAttempts`, summed across skills — an approximation because no table stores a true running total; see "Known v1 limitations").
+- **Subject insights** reuse `buildSubjectSummaries`, add a qualitative `masteryLabel` (`Excellent` ≥80, `Developing` ≥60, else `Needs Practice` — the same 60/80 thresholds already used elsewhere in the mastery/adaptive code, not new numbers), and sort weakest-mastery-first.
+- **Strongest/focus skills** reuse `pickTopSkills` (limit 5) and add a `reviewDue` flag by looking up each returned skill's `nextReviewAt` in the already-loaded enriched records — no second ranking implementation.
+- **Learning streak**: `computeLearningStreak` walks a de-duplicated, sorted list of a learner's completed `mission_date`s (all-time, fetched separately and cheaply — date/status only, no joins) entirely in UTC (a Postgres `date` string parses as UTC midnight, matching how `mission_date` is already treated everywhere else in this codebase). The current streak counts as "still current" if the most recent completed mission was today or yesterday; anything older than that resets it to 0. Longest streak is the longest run found anywhere in the full history, independent of whether it's still current.
+- **Weekly progress / session history** come from a single bounded query (`ParentDashboardRepository.getRecentMissionData`, capped at the most recent 30 missions) joined against their attempts (going `question_attempts → mission_items → question_bank`, the same safe to-one embed direction documented under "Adaptive mission generation" — never the reverse to-many embed that's unsafe under this table's RLS policy). Weekly progress filters to `status = 'completed'`, most recent 7; session history shows all recent missions regardless of status. Both render "No completed learning sessions yet." when empty.
+
+### Recommendation engine
+
+Deterministic, rule-based, no AI — `recommendation-engine.ts`'s `buildRecommendations` evaluates five rules in a **fixed priority order** and returns the first 3 that apply, so the same mastery data always produces the same recommendations:
+
+1. Any skill with mastery `< 40` → focus that skill (the lowest-mastery one) tomorrow.
+2. Any skill due for review → practice the overdue skills (up to 3 named).
+3. A skill whose confidence trails its mastery by ≥10 points → slow down and think carefully on that skill.
+4. Overall average response time `> 45,000ms` (1.5× the mastery calculator's own 30s target — reusing that constant rather than inventing a new threshold) → encourage timed practice.
+5. Every tracked skill at mastery `≥ 80` → add more challenge questions.
+
+### Upcoming mission preview
+
+"Tomorrow's likely focus" runs the **real** adaptive selector for tomorrow's date (`referenceTimestamp` = now + 1 day) using the **same** `AdaptiveDataRepository`/`selectAdaptiveMission`/`DEFAULT_ADAPTIVE_CONFIG` the live generator uses — but never persists a mission. `extractUpcomingFocusSkillIds` (`learning-health.ts`) then takes the selector's own output order and picks up to 3 distinct skill IDs, preferring `weak_skill`/`review_due`-tagged picks and falling back to whatever else was selected (so a strong learner still sees a preview instead of an empty one). Only skill **names** are shown — mastery scores, selection reasons, and category weights are never exposed to the parent UI.
+
+### Known v1 limitations
+
+- **"Mastery change" is an approximation.** With no `mastery_history` table (see above), the weekly progress column sums `computeMasteryDelta(isCorrect, difficulty)` per attempt — the same pure difficulty-based delta the live mastery engine uses — but excludes the consistency-streak modifier, which needs full sequential replay of a skill's attempt history to compute correctly. It's directionally accurate, not the true logged delta.
+- **"Total study time" is also an approximation** (`averageResponseMs × totalAttempts` per skill, summed) rather than a stored running total, for the same reason — no history table to read an exact sum from.
+- Session history/weekly progress are bounded to the most recent 30 missions; streak calculation is not (it only needs lightweight date/status data, so it scales to a learner's full history regardless).
+- No parent-facing UI for comparing multiple learners side by side yet — this page is one learner at a time, reached from the existing learner list on `/parent/dashboard`.
+
+## Planned: `learning-intelligence` facade (not yet built)
+
+As of Phase 5.3 there are three independent deterministic engines, each already pure/rule-based/no-AI and independently tested: mastery scoring (`learning-profile/mastery-calculator.ts`), adaptive mission selection (`adaptive-learning/adaptive-selector.ts`), and dashboard recommendations (`parent-dashboard/recommendation-engine.ts`). They currently live in three separate domain modules, each reached a different way from a page.
+
+**Design intent, not implemented yet**: a `src/modules/learning-intelligence/` facade — `learning-profile.ts`, `mastery.ts`, `recommendations.ts`, `mission-preview.ts`, `insights.ts` — as the single place future intelligence-related services (especially AI-facing ones) import from, rather than reaching into `learning-profile`/`adaptive-learning`/`parent-dashboard` individually. The point is **not** to move the existing engines' code — each stays where it is, still owned by its own domain, still independently testable — the facade would just re-export/compose their public entry points behind one import path. Worth building once there's an actual second consumer that needs all three together (an AI coaching layer is the obvious candidate); premature before that.
+
+**The principle this sets up for, whenever AI coaching arrives**: AI explains, it never replaces, the deterministic engines. The flow is always
+
+```
+Learning Data → Recommendation Engine (truth) → AI Coach (natural language)
+```
+
+never the reverse. The recommendation engine (and mastery/adaptive selector) stay the source of truth for _what_ to recommend; an AI layer's only job would be turning an already-decided, already-deterministic recommendation into parent-friendly prose — not deciding the recommendation itself. This is what keeps a future AI feature from hallucinating educational advice: it's constrained to explaining a fixed, testable input, never generating the underlying judgement. Any AI-coaching work (Phase 5.4+) should be evaluated against this constraint before it's built, not after.
+
+## Planned: AI Gateway module (not yet built — decision only)
+
+No AI/LLM calls exist anywhere in the codebase yet (every phase so far has explicitly excluded them). Before that changes, the architectural decision is made now, ahead of any implementation: **every future AI feature calls a single gateway module — proposed as `src/modules/ai-coach/` — never a model API directly.** Nothing is scaffolded yet; this section is the decision and its rationale, to build against once a first real AI feature (AI Feedback, AI Tutor, a parent-summary coach, teacher reports, study plans, …) actually gets scheduled.
+
+**Why centralise rather than let each feature call a model directly**: this is a children's education product — every AI-touched surface needs the same handful of guarantees (bounded input, validated output, graceful degradation, an auditable single choke point for a future privacy/safety review). Duplicating that per-feature means duplicating the ways it can go wrong; one gateway means one place to get it right and one place to check.
+
+The gateway owns five responsibilities, none of which any feature should reimplement:
+
+- **Prompt construction** — templated, versioned builders per use case. Critically, a builder's input is always the _already-computed deterministic output_ of an engine (a `Recommendation[]`, a `ParentDashboardData`, …), never raw DB rows and never unsanitised free text — the same "AI explains, never decides" boundary the `learning-intelligence` facade above sets up, enforced here at the only place prompts actually get built.
+- **Model selection** — one place that maps a use case to a specific model/version (e.g. a fast/cheap model for a short parent summary vs. a more capable one for a study plan). Call sites ask for a use case, never a model name — swapping providers or upgrading a model later touches this one module, not every feature that happens to use AI.
+- **Response validation** — every model response is checked against an expected shape (Zod, matching how every other boundary in this app already validates) before it's ever rendered: length/content bounds, no leaked internal data (mastery scores, selection reasons, other-learner data) beyond what the specific prompt intended to expose. A response that fails validation is treated as a failure, not displayed-and-hoped.
+- **Caching** — keyed by the same deterministic inputs that produced the prompt (mirroring the determinism already guaranteed upstream by the mastery/adaptive/recommendation engines), so unchanged learning data doesn't trigger a repeat model call.
+- **Error handling** — timeouts/rate-limits/failures are the gateway's problem, not the feature's, and they must **fail soft**: an AI outage degrades a feature back to its deterministic baseline (e.g. the dashboard still shows `Recommendation[]` text as-is) rather than breaking the page. This is the same non-blocking design already chosen for mastery processing in Phase 5.1 (`docs/Architecture.md` → "Learning profile & mastery" → the fail-open decision) — AI failure modes should follow that precedent, not invent a new one.
+
+**Scope note**: this decision governs _how_ AI gets added later, not _whether_ — it doesn't authorise building an AI feature now. `OpenAI`/model calls remain explicitly out of scope until a specific AI phase is scheduled and scoped on its own terms.
 
 ## Observability
 
