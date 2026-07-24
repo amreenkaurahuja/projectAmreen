@@ -76,6 +76,8 @@ export interface SubjectSummary {
   totalAttempts: number;
   /** 0-100, correctAttempts / totalAttempts across the subject's skills. */
   accuracy: number;
+  /** Weighted average across skills with a recorded response time; null if none do. */
+  averageResponseMs: number | null;
 }
 
 export interface SkillDueForReview {

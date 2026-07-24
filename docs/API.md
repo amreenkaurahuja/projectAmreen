@@ -119,6 +119,10 @@ Auth required. Returns the learner's aggregated learning profile — overall mas
 **Response** `200` → `LearnerProfileSummary` (see `mastery.types.ts`).
 **Errors**: `400` invalid learner id · `401` · `403` learner not owned · `500`.
 
+## Parent Intelligence Dashboard (Phase 5.3)
+
+`/parent/learners/[learnerId]` is a Server Component page, not an `/api/**` route — it calls `ParentDashboardService` directly server-side, the same pattern `/learner/dashboard` already uses for mission/mastery data. No new API endpoint was added for it; see `docs/Architecture.md` → "Parent Intelligence Dashboard" for the service/repository it's built on.
+
 ## `GET /auth/callback?code=<code>`
 
 Not under `/api`. Supabase OAuth/magic-link redirect target — exchanges `code` for a session, then redirects to `/parent/dashboard`. No JSON response.

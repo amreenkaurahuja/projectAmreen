@@ -54,7 +54,13 @@ function toSkillSummary(record: EnrichedMasteryRecord): SkillSummary {
   };
 }
 
-function buildSubjectSummaries(
+/**
+ * Exported for reuse by the parent dashboard (Phase 5.3), which needs the
+ * same per-subject aggregation plus averageResponseMs (not needed by the
+ * learner-facing profile, so it lives here rather than being computed
+ * twice).
+ */
+export function buildSubjectSummaries(
   records: EnrichedMasteryRecord[],
 ): SubjectSummary[] {
   const bySubject = new Map<string, EnrichedMasteryRecord[]>();
@@ -70,6 +76,12 @@ function buildSubjectSummaries(
       (sum, r) => sum + r.correctAttempts,
       0,
     );
+    const responseTimeEntries = group
+      .filter(
+        (r): r is EnrichedMasteryRecord & { averageResponseMs: number } =>
+          r.averageResponseMs !== null,
+      )
+      .map((r) => ({ value: r.averageResponseMs, weight: r.totalAttempts }));
 
     return {
       subjectId: group[0]!.subjectId,
@@ -93,6 +105,7 @@ function buildSubjectSummaries(
         totalAttempts > 0
           ? Math.round((correctAttempts / totalAttempts) * 100)
           : 0,
+      averageResponseMs: weightedAverage(responseTimeEntries),
     };
   });
 
@@ -102,10 +115,14 @@ function buildSubjectSummaries(
 /**
  * Ranks by masteryScore (desc for strongest, asc for weakest), breaking ties
  * by skillName so the result is deterministic regardless of input/DB order.
+ * `limit` defaults to the learner-profile summary's 3; the parent dashboard
+ * (Phase 5.3) reuses this with limit=5 rather than duplicating the ranking
+ * logic — see src/modules/parent-dashboard/learning-health.ts.
  */
-function pickTopSkills(
+export function pickTopSkills(
   records: EnrichedMasteryRecord[],
   direction: "strongest" | "weakest",
+  limit: number = MAX_HIGHLIGHT_SKILLS,
 ): SkillSummary[] {
   const sorted = [...records].sort((a, b) => {
     const delta =
@@ -114,7 +131,7 @@ function pickTopSkills(
         : a.masteryScore - b.masteryScore;
     return delta !== 0 ? delta : a.skillName.localeCompare(b.skillName);
   });
-  return sorted.slice(0, MAX_HIGHLIGHT_SKILLS).map(toSkillSummary);
+  return sorted.slice(0, limit).map(toSkillSummary);
 }
 
 function pickEdgeSubject(

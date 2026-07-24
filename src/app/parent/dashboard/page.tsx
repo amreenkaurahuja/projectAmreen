@@ -37,12 +37,20 @@ export default async function ParentDashboard() {
           <ul className="mt-5 space-y-3">
             {learners.map((l) => (
               <li key={l.id} className="rounded-xl border p-4">
-                <Link
-                  className="font-medium underline"
-                  href={`/learner/dashboard?learner=${l.id}`}
-                >
-                  {l.display_name}
-                </Link>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link
+                    className="font-medium underline"
+                    href={`/learner/dashboard?learner=${l.id}`}
+                  >
+                    {l.display_name}
+                  </Link>
+                  <Link
+                    className="text-sm font-medium underline"
+                    href={`/parent/learners/${l.id}`}
+                  >
+                    View learning insights →
+                  </Link>
+                </div>
                 <p className="text-sm text-neutral-600">
                   School year {l.school_year}
                   {l.exam_target ? ` · ${l.exam_target}` : ""}
