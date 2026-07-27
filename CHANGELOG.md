@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows 
 
 ## Unreleased
 
+### Changed — Release 0.6 hardening (Sprint 1.5, post-completion-audit)
+
+- Removed `LEARNER_PROMPT_VERSION`/`PARENT_PROMPT_VERSION` — two unused exports that had suggested the prompt builders owned their own version identity, when only `coach/context-builder.ts`'s `PROMPT_VERSION` constant actually does (found by a completion audit, SDS-002). No behavior change — the working cache-invalidation mechanism (`promptVersion` embedded in the hashed DTO) was already correct; this removes the misleading duplication around it.
+- Added prompt-injection regression tests (`ai-prompts.test.ts`) — the untrusted-data mitigation existed with no test guarding it; now covers both audiences' system prompts and verifies adversarial learner/skill data can't break out of its JSON string.
+- `docs/ReleaseReadiness.md` — a one-page release-gate matrix (Architecture/Database/Security/Performance/AI/Testing/Documentation/Operations), filled in for Release 0.6.
+- `docs/Roadmap.md` — added Rule 13: no new feature work while a Testing/Documentation/Security/Architecture category is below ✅ in the readiness matrix.
+
 ### Changed — AI Platform foundation hardening
 
 - `shared/ai-config.ts` (`readAiConfigFromEnv`/`AiConfig`) and `shared/feature-flags.ts` (`isAiEnabled`/`isCoachEnabledForAudience`) consolidate generation parameters (temperature, max tokens, timeout) and env-var flag reads into two single-purpose modules — no behavior change, `gemini-provider.ts` and `gateway-factory.ts` now read from these instead of duplicating constants/`process.env` reads. See `docs/AI_PLATFORM.md` → "Configuration and Feature Flags" for what was and wasn't added, and why (no barrel exports, no umbrella error class — both deliberately kept consistent with existing project convention rather than introduced for this module alone).
