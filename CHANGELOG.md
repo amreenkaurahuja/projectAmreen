@@ -4,6 +4,10 @@ All notable changes to this project are documented here. Format loosely follows 
 
 ## Unreleased
 
+### Changed — AI Platform foundation hardening
+
+- `shared/ai-config.ts` (`readAiConfigFromEnv`/`AiConfig`) and `shared/feature-flags.ts` (`isAiEnabled`/`isCoachEnabledForAudience`) consolidate generation parameters (temperature, max tokens, timeout) and env-var flag reads into two single-purpose modules — no behavior change, `gemini-provider.ts` and `gateway-factory.ts` now read from these instead of duplicating constants/`process.env` reads. See `docs/AI_PLATFORM.md` → "Configuration and Feature Flags" for what was and wasn't added, and why (no barrel exports, no umbrella error class — both deliberately kept consistent with existing project convention rather than introduced for this module alone).
+
 ### Added — AI Platform (Phase 5.4, Parts 1–3)
 
 - `src/modules/ai/` — a full, provider-agnostic AI coaching platform: the `LearnerCoachingContext` DTO and its strict Zod validation, a `ContextBuilder` that assembles one from the existing `ParentDashboardService`/`MissionCompletionService` (no duplicated calculations), versioned learner/parent prompt builders, a `Gemini`-backed `AiGateway` implementation (`@google/genai`, isolated to a single `providers/gemini-provider.ts` file), a two-stage response validator (shape) and grounding validator (content — every claimed strength/focus-area/next-step and every number the response states must trace back to the DTO; banned diagnostic/comparative/predictive/ranking language; no excessive study-time advice; no percentages for the learner audience; an 80/160-word budget), and a deterministic non-AI `fallback-coach.ts`.

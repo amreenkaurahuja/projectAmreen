@@ -9,6 +9,7 @@ import {
   type AiGenerationResponse,
 } from "../gateway/ai-gateway";
 import { contextHashPrefix } from "../cache/context-hash";
+import { readAiConfigFromEnv } from "../shared/ai-config";
 import { logAiError, logAiEvent } from "../shared/logger";
 import { sharedProviderHealth } from "../shared/provider-health";
 
@@ -16,17 +17,22 @@ import { sharedProviderHealth } from "../shared/provider-health";
 // Everything else depends on the AiGateway interface.
 
 const PROVIDER_NAME = "gemini";
-const DEFAULT_TIMEOUT_MS = 10_000;
-/** Low temperature for high consistency — this is a coaching summary, not creative writing. */
-const TEMPERATURE = 0.2;
-/** Small — the audience prompts cap responses at 80/160 words; there is no case for an essay-length reply. */
-const MAX_OUTPUT_TOKENS = 350;
+// Defaults for a directly-constructed GeminiProvider (mainly tests) that
+// don't go through createGeminiProviderFromEnv — sourced from the same
+// AiConfig defaults so there's exactly one place these values are decided.
+const {
+  temperature: DEFAULT_TEMPERATURE,
+  maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
+  timeoutMs: DEFAULT_TIMEOUT_MS,
+} = readAiConfigFromEnv({});
 
 export interface GeminiProviderConfig {
   apiKey: string;
   /** Never hardcoded — read from the AI_COACH_MODEL env var by createGeminiProviderFromEnv. */
   model: string;
   timeoutMs?: number;
+  temperature?: number;
+  maxOutputTokens?: number;
 }
 
 /**
@@ -39,11 +45,15 @@ export class GeminiProvider implements AiGateway {
   private readonly client: GoogleGenAI;
   private readonly model: string;
   private readonly timeoutMs: number;
+  private readonly temperature: number;
+  private readonly maxOutputTokens: number;
 
   constructor(config: GeminiProviderConfig) {
     this.client = new GoogleGenAI({ apiKey: config.apiKey });
     this.model = config.model;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.temperature = config.temperature ?? DEFAULT_TEMPERATURE;
+    this.maxOutputTokens = config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
   }
 
   async generate(request: AiGenerationRequest): Promise<AiGenerationResponse> {
@@ -57,8 +67,8 @@ export class GeminiProvider implements AiGateway {
         contents: request.userPrompt,
         config: {
           systemInstruction: request.systemPrompt,
-          temperature: TEMPERATURE,
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          temperature: this.temperature,
+          maxOutputTokens: this.maxOutputTokens,
           responseMimeType: "application/json",
           responseSchema: request.responseSchema,
           abortSignal: controller.signal,
@@ -130,7 +140,7 @@ export class GeminiProvider implements AiGateway {
   }
 }
 
-/** Reads GEMINI_API_KEY / AI_COACH_MODEL — the model is never hardcoded elsewhere. */
+/** Builds a GeminiProvider from shared/ai-config.ts plus GEMINI_API_KEY — the model is never hardcoded elsewhere. */
 export function createGeminiProviderFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): GeminiProvider {
@@ -139,10 +149,16 @@ export function createGeminiProviderFromEnv(
     throw new AiProviderError("GEMINI_API_KEY is not set");
   }
 
-  const model = env.AI_COACH_MODEL;
-  if (!model) {
+  const config = readAiConfigFromEnv(env);
+  if (!config.model) {
     throw new AiProviderError("AI_COACH_MODEL is not set");
   }
 
-  return new GeminiProvider({ apiKey, model });
+  return new GeminiProvider({
+    apiKey,
+    model: config.model,
+    temperature: config.temperature,
+    maxOutputTokens: config.maxOutputTokens,
+    timeoutMs: config.timeoutMs,
+  });
 }

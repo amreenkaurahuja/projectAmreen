@@ -37,6 +37,25 @@ Pages and route handlers construct `new Supabase<X>Repository(supabase)` and `ne
 
 Every `*.service.ts` depends on the repository's **interface**, not the concrete Supabase class. Unit tests construct the service with a hand-built fake object implementing that interface — no real network calls, no test database. This is what makes `npm test` fast (whole suite runs in a few seconds) and deterministic.
 
+## Dependency rules
+
+One rule governs how domain modules under `src/modules/` may depend on each other: **dependencies point toward the deterministic core, never away from it.**
+
+```
+missions ─┐
+mastery ──┼─→ adaptive-learning ─→ parent-dashboard ─→ ai
+curriculum ┘
+```
+
+Concretely, as of Phase 5.4:
+
+- `ai` depends on `parent-dashboard` and `missions` (via `ContextBuilder` calling `ParentDashboardService`/`MissionCompletionService`) and, transitively, everything they depend on (`learning-profile`, `adaptive-learning`).
+- `parent-dashboard` depends on `learning-profile`, `adaptive-learning`, and `missions`.
+- `adaptive-learning` depends on `missions` and `learning-profile`.
+- **Nothing depends on `ai`.** `missions`, `learning-profile`, `adaptive-learning`, `parent-dashboard`, and `curriculum` have zero imports from `src/modules/ai/` — verified by grep, not just asserted (no `from "@/modules/ai/..."` anywhere outside `src/modules/ai/` itself, `src/app/api/learners/[learnerId]/coach/`, and `src/components/ai/`).
+
+This is what makes "the platform works with AI disabled" (`docs/AI_CONSTITUTION.md`, Rule 9) a property of the dependency graph, not just a runtime flag — the deterministic modules literally cannot observe whether `ai` exists. The same rule applies to any future AI feature built alongside the coach: it may depend on the deterministic modules it explains, never the reverse.
+
 ## Request flow
 
 **Server-rendered page** (e.g. `/learner/mission`):
@@ -267,13 +286,13 @@ No AI/LLM calls existed anywhere in the codebase before this phase (every earlie
 ```
 src/modules/ai/
   gateway/      ai-gateway.ts             — provider-agnostic interface + request/response types
-                gateway-factory.ts        — reads AI_COACH_ENABLED/AI_PROVIDER/GEMINI_API_KEY/AI_COACH_MODEL, returns null (never throws) when AI shouldn't run
+                gateway-factory.ts        — composes shared/ai-config.ts + shared/feature-flags.ts, returns null (never throws) when AI shouldn't run
   providers/    gemini-provider.ts        — the only file that imports @google/genai
   prompts/      learner-prompt.ts, parent-prompt.ts   — versioned, per-audience prompt builders
                 prompt-shared.ts, coach-response-schema.ts — shared system-prompt scaffold + JSON schema (not in the original file list, added to avoid duplicating them per audience)
   validation/   dto-validator.ts, response-validator.ts, grounding-validator.ts, banned-phrases.ts
   cache/        context-hash.ts, ai-cache.repository.ts (Supabase-backed, table: ai_coaching_messages)
-  shared/       canonical-json.ts, logger.ts
+  shared/       canonical-json.ts, logger.ts, ai-config.ts, feature-flags.ts, budget-manager.ts, provider-health.ts
   coach/        coach.types.ts, context-builder.ts, fallback-coach.ts, audiences.ts, ai-coach.service.ts
 ```
 
