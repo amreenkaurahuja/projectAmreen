@@ -46,9 +46,22 @@ Everything left of `ContextBuilder` is the deterministic learning-intelligence s
 ## Provider Integration
 
 - `gateway/ai-gateway.ts` defines the only interface the rest of the app depends on: `AiGateway.generate(request): Promise<AiGenerationResponse>`.
-- `gateway/gateway-factory.ts`'s `createAiGatewayFromEnv()` is the platform-level factory: reads `AI_ENABLED`/`AI_PROVIDER`/`GEMINI_API_KEY`/`AI_COACH_MODEL` and returns `null` — never throws — whenever AI shouldn't run. The same file's `isCoachEnabledForAudience(audience)` is the feature-level check (`AI_COACH_ENABLED` + `AI_LEARNER_ENABLED`/`AI_PARENT_ENABLED`).
+- `gateway/gateway-factory.ts`'s `createAiGatewayFromEnv()` is the platform-level factory: reads the config/flags below and returns `null` — never throws — whenever AI shouldn't run. The same file re-exports `isCoachEnabledForAudience(audience)`, the feature-level check.
 - `providers/gemini-provider.ts`'s `GeminiProvider` is the only implementation today: temperature 0.2, max 350 output tokens, a 10-second timeout via `AbortController`, zero automatic retries, structured JSON output (`responseMimeType: "application/json"`, `responseSchema`).
 - **Future providers**: adding OpenAI, Groq, Claude, or Ollama means one new `providers/*-provider.ts` file implementing `AiGateway`, plus a branch in `gateway-factory.ts`'s provider selection. No change to `AiCoachService`, the prompt builders, or any validator.
+
+## Configuration and Feature Flags
+
+Two small, single-purpose modules under `shared/`, both read once from `process.env` and never scattered as ad-hoc reads elsewhere:
+
+- `shared/ai-config.ts`'s `readAiConfigFromEnv()` returns an `AiConfig` — `provider`, `model` (from `AI_PROVIDER`/`AI_COACH_MODEL`), and the three generation parameters (`temperature`, `maxOutputTokens`, `timeoutMs`). The generation parameters are **fixed, not environment-configurable** — they encode a product decision (consistent, short, grounded coaching text), not a per-deployment tuning knob, so there are deliberately no `AI_TEMPERATURE`-style env vars. `providers/gemini-provider.ts` builds its config from this in one place instead of hardcoding the same three numbers.
+- `shared/feature-flags.ts` exports `isAiEnabled()` (the `AI_ENABLED` platform-wide master switch) and `isCoachEnabledForAudience(audience)` (`AI_COACH_ENABLED` + the matching `AI_LEARNER_ENABLED`/`AI_PARENT_ENABLED`). `gateway-factory.ts` composes both rather than re-implementing flag-reading itself. A future second AI feature gets its own `isXEnabled` function here, layered on `isAiEnabled` the same way.
+
+**Deliberately not built**, and why:
+
+- **A barrel `index.ts` for `src/modules/ai/`** — no other domain module in this codebase (`missions`, `learning-profile`, `adaptive-learning`, `parent-dashboard`) uses barrel exports; every import is a direct file path. Adding one only to this module would be inconsistent with the project's own convention rather than following it.
+- **A single umbrella `AIError` base class** — the codebase's existing convention (see `MissionRepositoryError`, `AdaptiveDataRepositoryError`, `ParentDashboardRepositoryError`) is one error base **per concern**, not one base spanning a whole subsystem. The AI platform already follows that: `AiProviderError` (→ `AiProviderTimeoutError`, `AiProviderQuotaError`), `AiCacheRepositoryError` (→ `AiCacheDuplicateError`), and `ContextBuilderValidationError` are each scoped to the concern that throws them. A single `AIError` umbrella would be a cosmetic change that breaks with the project's own pattern rather than matching it.
+- **Thrown `ValidationError`/`GroundingError` classes** — response and grounding failures are intentionally represented as returned values (`ValidationResult`, `GroundingViolation[]`), not thrown exceptions. That's what makes "every failure falls back, nothing propagates" (`docs/AI_CONSTITUTION.md`, Rules 7–9) straightforward to guarantee — turning them into exceptions would mean re-introducing try/catch around a case that was deliberately designed to never throw.
 
 ## Validation
 

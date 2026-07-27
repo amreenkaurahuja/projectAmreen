@@ -1,7 +1,17 @@
 import "server-only";
 import { createGeminiProviderFromEnv } from "../providers/gemini-provider";
-import type { Audience } from "../coach/coach.types";
+import { readAiConfigFromEnv } from "../shared/ai-config";
+import {
+  isAiEnabled,
+  isCoachEnabledForAudience,
+} from "../shared/feature-flags";
 import type { AiGateway } from "./ai-gateway";
+
+// Re-exported so existing call sites (the coach API route, tests) don't
+// need to know this moved to shared/feature-flags.ts — this file is still
+// "the" place that decides gateway availability, it just delegates the
+// flag-reading itself to the shared module now.
+export { isCoachEnabledForAudience };
 
 /**
  * Platform-level availability: is AI infrastructure allowed to run at all,
@@ -15,13 +25,13 @@ import type { AiGateway } from "./ai-gateway";
 export function createAiGatewayFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): AiGateway | null {
-  if (env.AI_ENABLED !== "true") {
+  if (!isAiEnabled(env)) {
     return null;
   }
 
   // Only Gemini is implemented today. An explicit, unsupported AI_PROVIDER
   // is treated the same as "disabled" rather than guessed at.
-  if ((env.AI_PROVIDER ?? "gemini") !== "gemini") {
+  if (readAiConfigFromEnv(env).provider !== "gemini") {
     return null;
   }
 
@@ -30,26 +40,4 @@ export function createAiGatewayFromEnv(
   } catch {
     return null;
   }
-}
-
-/**
- * Feature-level availability: is the AI Learning Coach specifically turned
- * on for this audience. Layered on top of (not instead of) AI_ENABLED, so
- * a future second AI feature (e.g. a teacher-report generator) can ship
- * its own AI_TEACHER_ENABLED flag and be rolled out independently, without
- * redeploying or touching this one. A caller should treat `false` here the
- * same as a null gateway — go straight to the fallback — even if
- * createAiGatewayFromEnv would otherwise have returned a working gateway.
- */
-export function isCoachEnabledForAudience(
-  audience: Audience,
-  env: Record<string, string | undefined> = process.env,
-): boolean {
-  if (env.AI_COACH_ENABLED !== "true") {
-    return false;
-  }
-
-  const audienceFlag =
-    audience === "learner" ? env.AI_LEARNER_ENABLED : env.AI_PARENT_ENABLED;
-  return audienceFlag === "true";
 }

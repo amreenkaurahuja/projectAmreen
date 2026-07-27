@@ -267,13 +267,13 @@ No AI/LLM calls existed anywhere in the codebase before this phase (every earlie
 ```
 src/modules/ai/
   gateway/      ai-gateway.ts             — provider-agnostic interface + request/response types
-                gateway-factory.ts        — reads AI_COACH_ENABLED/AI_PROVIDER/GEMINI_API_KEY/AI_COACH_MODEL, returns null (never throws) when AI shouldn't run
+                gateway-factory.ts        — composes shared/ai-config.ts + shared/feature-flags.ts, returns null (never throws) when AI shouldn't run
   providers/    gemini-provider.ts        — the only file that imports @google/genai
   prompts/      learner-prompt.ts, parent-prompt.ts   — versioned, per-audience prompt builders
                 prompt-shared.ts, coach-response-schema.ts — shared system-prompt scaffold + JSON schema (not in the original file list, added to avoid duplicating them per audience)
   validation/   dto-validator.ts, response-validator.ts, grounding-validator.ts, banned-phrases.ts
   cache/        context-hash.ts, ai-cache.repository.ts (Supabase-backed, table: ai_coaching_messages)
-  shared/       canonical-json.ts, logger.ts
+  shared/       canonical-json.ts, logger.ts, ai-config.ts, feature-flags.ts, budget-manager.ts, provider-health.ts
   coach/        coach.types.ts, context-builder.ts, fallback-coach.ts, audiences.ts, ai-coach.service.ts
 ```
 
