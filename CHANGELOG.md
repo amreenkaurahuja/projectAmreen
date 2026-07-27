@@ -2,26 +2,30 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/), grouped by shipped milestone rather than by individual commit — see `docs/ReleaseNotes.md` for the more detailed, chronological version, and `git log` for full commit history.
 
-## Unreleased
+## v0.6.0 — Learning Intelligence Platform (AI Learning Coach)
 
-### Changed — Release 0.6 hardening (Sprint 1.5, post-completion-audit)
+The AI Learning Coach: Project Amreen's deterministic learning-intelligence engines (mastery, adaptive missions, recommendations — all v0.5.0) gain a natural-language communication layer, built so AI explains what the deterministic engines already decided and never decides anything itself (`docs/AI_CONSTITUTION.md`). A completion audit (SDS-002) and a follow-up hardening pass closed the gaps it found before this tag — see `docs/ReleaseReadiness.md` for the full readiness matrix.
 
-- Removed `LEARNER_PROMPT_VERSION`/`PARENT_PROMPT_VERSION` — two unused exports that had suggested the prompt builders owned their own version identity, when only `coach/context-builder.ts`'s `PROMPT_VERSION` constant actually does (found by a completion audit, SDS-002). No behavior change — the working cache-invalidation mechanism (`promptVersion` embedded in the hashed DTO) was already correct; this removes the misleading duplication around it.
-- Added prompt-injection regression tests (`ai-prompts.test.ts`) — the untrusted-data mitigation existed with no test guarding it; now covers both audiences' system prompts and verifies adversarial learner/skill data can't break out of its JSON string.
-- `docs/ReleaseReadiness.md` — a one-page release-gate matrix (Architecture/Database/Security/Performance/AI/Testing/Documentation/Operations), filled in for Release 0.6.
-- `docs/Roadmap.md` — added Rule 13: no new feature work while a Testing/Documentation/Security/Architecture category is below ✅ in the readiness matrix.
+### Added — AI Platform (`src/modules/ai/`)
 
-### Changed — AI Platform foundation hardening
-
-- `shared/ai-config.ts` (`readAiConfigFromEnv`/`AiConfig`) and `shared/feature-flags.ts` (`isAiEnabled`/`isCoachEnabledForAudience`) consolidate generation parameters (temperature, max tokens, timeout) and env-var flag reads into two single-purpose modules — no behavior change, `gemini-provider.ts` and `gateway-factory.ts` now read from these instead of duplicating constants/`process.env` reads. See `docs/AI_PLATFORM.md` → "Configuration and Feature Flags" for what was and wasn't added, and why (no barrel exports, no umbrella error class — both deliberately kept consistent with existing project convention rather than introduced for this module alone).
-
-### Added — AI Platform (Phase 5.4, Parts 1–3)
-
-- `src/modules/ai/` — a full, provider-agnostic AI coaching platform: the `LearnerCoachingContext` DTO and its strict Zod validation, a `ContextBuilder` that assembles one from the existing `ParentDashboardService`/`MissionCompletionService` (no duplicated calculations), versioned learner/parent prompt builders, a `Gemini`-backed `AiGateway` implementation (`@google/genai`, isolated to a single `providers/gemini-provider.ts` file), a two-stage response validator (shape) and grounding validator (content — every claimed strength/focus-area/next-step and every number the response states must trace back to the DTO; banned diagnostic/comparative/predictive/ranking language; no excessive study-time advice; no percentages for the learner audience; an 80/160-word budget), and a deterministic non-AI `fallback-coach.ts`.
+- The `LearnerCoachingContext` DTO and its strict Zod validation, a `ContextBuilder` that assembles one from the existing `ParentDashboardService`/`MissionCompletionService` (no duplicated calculations), versioned learner/parent prompt builders, a `Gemini`-backed `AiGateway` implementation (`@google/genai`, isolated to a single `providers/gemini-provider.ts` file), a two-stage response validator (shape) and grounding validator (content — every claimed strength/focus-area/next-step and every number the response states must trace back to the DTO; banned diagnostic/comparative/predictive/ranking language; no excessive study-time advice; no percentages for the learner audience; an 80/160-word budget), and a deterministic non-AI `fallback-coach.ts`.
 - `ai_coaching_messages` table (`0010_phase5_ai_learning_coach.sql`) — caches one accepted AI response per learner/audience/context-hash, with `ON CONFLICT`-safe handling for concurrent requests (a losing insert re-reads the winning row instead of erroring).
-- `AiCoachService` (`coach/ai-coach.service.ts`) — the single orchestrator: build+validate DTO → hash → cache lookup → Gemini on a miss → validate → ground → persist → fall back at any failure point (disabled, missing credentials, timeout, 429, malformed JSON, failed validation/grounding all degrade to the deterministic fallback; only a genuine ownership error propagates).
-- `GET /api/learners/[learnerId]/coach?audience=learner|parent` — the platform's first real caller. Returns `{headline, message, strengths, focusAreas, nextSteps, source, cached}`; never returns a provider error. No page renders it yet — this is backend/API only.
-- `AI_ENABLED`/`AI_PROVIDER`/`GEMINI_API_KEY`/`AI_COACH_MODEL` (server-only) now actually gate behavior via `gateway/gateway-factory.ts`'s `createAiGatewayFromEnv` — previously documented but unread.
+- `AiCoachService` (`coach/ai-coach.service.ts`) — the single orchestrator: build+validate DTO → hash → cache lookup → Gemini on a miss → validate → ground → persist → fall back at any failure point (disabled, missing credentials, timeout, 429, malformed JSON, failed validation/grounding, budget exhausted all degrade to the deterministic fallback; only a genuine ownership error propagates).
+- `GET /api/learners/[learnerId]/coach?audience=learner|parent` — never returns a provider error.
+- An estimated-cost budget guard with a circuit breaker (`shared/budget-manager.ts`), an in-process Gemini health tracker (`shared/provider-health.ts`), and layered feature flags (`AI_ENABLED` platform-wide, `AI_COACH_ENABLED`/`AI_LEARNER_ENABLED`/`AI_PARENT_ENABLED` per feature/audience).
+- UI: a "Today's Coach" card on `/learner/dashboard` and an "AI Learning Summary" card on `/parent/learners/[learnerId]` (`src/components/ai/coach-card.tsx`) — client-fetched with a loading skeleton, a source badge (AI Generated / System Generated), a refresh action, and a no-AI-call empty state for brand-new learners.
+- `shared/ai-config.ts`/`shared/feature-flags.ts` — generation parameters and env-flag reads consolidated into two single-purpose modules.
+- `docs/AI_PLATFORM.md`, `docs/AI_CONSTITUTION.md`, `docs/ReleaseReadiness.md`, `docs/adr/0004-why-ai-remains-under-modules.md`, and a "Dependency rules" section in `docs/Architecture.md`.
+
+### Fixed — post-audit hardening (Sprint 1.5)
+
+- Removed `LEARNER_PROMPT_VERSION`/`PARENT_PROMPT_VERSION`, two unused exports that had suggested the prompt builders owned their own version identity, when only `coach/context-builder.ts`'s `PROMPT_VERSION` constant actually does. No behavior change — the working cache-invalidation mechanism (`promptVersion` embedded in the hashed DTO) was already correct; this removes the misleading duplication a completion audit (SDS-002) flagged around it.
+- Added prompt-injection regression tests — the untrusted-data mitigation existed with no test guarding it.
+
+### Known gaps at this tag
+
+- E2E (`tests/e2e/ai-coach.spec.ts`) has never executed against a real environment — this app's only Supabase project is production, and running E2E there was explicitly declined rather than risk mutating real data. Tracked in `docs/Roadmap.md` → "Known gaps" (dedicated staging Supabase project) and `docs/ReleaseReadiness.md`.
+- Budget/health tracking is in-memory per-process, not DB-persisted; acceptable at current traffic, revisit if it grows. See `docs/AI_PLATFORM.md` → "Observability".
 
 ### Added — operational hardening (proposed after Part 3, added immediately)
 
