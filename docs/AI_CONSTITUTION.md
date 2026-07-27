@@ -18,9 +18,13 @@ AI does not decide what a learner should study next, how mastered a skill is, or
 
 `src/modules/adaptive-learning/adaptive-selector.ts`'s seeded, explainable selection is unaffected by anything in `src/modules/ai/`. No AI output feeds back into what questions a learner receives.
 
-## Rule 5 — No database rows cross the AI boundary
+## Rule 5 — Validated context boundary
 
-`coach/context-builder.ts`'s `ContextBuilder` is the only class allowed to call `ParentDashboardService`/`MissionCompletionService` on the AI platform's behalf. Everything above it — prompts, the gateway, providers, validators — only ever sees a `LearnerCoachingContext`, never a `question_attempts`/`missions`/`learner_skill_mastery`/`mission_items` row.
+AI prompts, gateways, providers and validators may receive only capability-specific, bounded and validated context DTOs. They must never receive raw database rows or unrestricted learner records.
+
+Coaching uses `LearnerCoachingContext`, built exclusively by `coach/context-builder.ts`'s `ContextBuilder` from `ParentDashboardService`/`MissionCompletionService`. Question explanations use `QuestionExplanationContext` (`src/modules/question-explainer/`), containing only the question, answer and curriculum data required for the explanation. Everything above either builder — prompts, the gateway, providers, validators — only ever sees the relevant validated DTO, never a `question_attempts`/`missions`/`learner_skill_mastery`/`mission_items`/`question_bank` row directly.
+
+This is a documentation clarification of an existing boundary, not a weakening of it: each new AI capability gets its own narrow, `.strict()`-validated context type, scoped to exactly what that capability needs to explain — never a shared "everything" DTO, and never a live repository/service reference passed above the builder.
 
 ## Rule 6 — Every AI request uses a validated DTO
 
