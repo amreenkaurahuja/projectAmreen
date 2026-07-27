@@ -2,9 +2,25 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/), grouped by shipped milestone rather than by individual commit — see `docs/ReleaseNotes.md` for the more detailed, chronological version, and `git log` for full commit history.
 
+## Unreleased
+
+### Added — AI Platform (Phase 5.4, Parts 1–3)
+
+- `src/modules/ai/` — a full, provider-agnostic AI coaching platform: the `LearnerCoachingContext` DTO and its strict Zod validation, a `ContextBuilder` that assembles one from the existing `ParentDashboardService`/`MissionCompletionService` (no duplicated calculations), versioned learner/parent prompt builders, a `Gemini`-backed `AiGateway` implementation (`@google/genai`, isolated to a single `providers/gemini-provider.ts` file), a two-stage response validator (shape) and grounding validator (content — every claimed strength/focus-area/next-step and every number the response states must trace back to the DTO; banned diagnostic/comparative/predictive/ranking language; no excessive study-time advice; no percentages for the learner audience; an 80/160-word budget), and a deterministic non-AI `fallback-coach.ts`.
+- `ai_coaching_messages` table (`0010_phase5_ai_learning_coach.sql`) — caches one accepted AI response per learner/audience/context-hash, with `ON CONFLICT`-safe handling for concurrent requests (a losing insert re-reads the winning row instead of erroring).
+- `AiCoachService` (`coach/ai-coach.service.ts`) — the single orchestrator: build+validate DTO → hash → cache lookup → Gemini on a miss → validate → ground → persist → fall back at any failure point (disabled, missing credentials, timeout, 429, malformed JSON, failed validation/grounding all degrade to the deterministic fallback; only a genuine ownership error propagates).
+- `GET /api/learners/[learnerId]/coach?audience=learner|parent` — the platform's first real caller. Returns `{headline, message, strengths, focusAreas, nextSteps, source, cached}`; never returns a provider error. No page renders it yet — this is backend/API only.
+- `AI_ENABLED`/`AI_PROVIDER`/`GEMINI_API_KEY`/`AI_COACH_MODEL` (server-only) now actually gate behavior via `gateway/gateway-factory.ts`'s `createAiGatewayFromEnv` — previously documented but unread.
+
+### Added — operational hardening (proposed after Part 3, added immediately)
+
+- `shared/budget-manager.ts`'s `BudgetManager` — an estimated daily/monthly AI-usage tracker with a circuit breaker: once estimated monthly cost reaches `AI_MONTHLY_BUDGET_GBP` (default £10), every request degrades to the deterministic fallback until the next calendar month. In-memory/per-process (documented limitation, not a substitute for the provider's own billing alerts).
+- `shared/provider-health.ts`'s `ProviderHealthTracker` — a rolling window of the last 50 Gemini calls, recorded by `gemini-provider.ts`, exposing status (`healthy`/`degraded`/`down`), average latency, timeout rate, and last success time for future ops monitoring.
+- Layered feature flags: `AI_ENABLED` (platform-wide master switch) plus `AI_COACH_ENABLED`/`AI_LEARNER_ENABLED`/`AI_PARENT_ENABLED` (coach feature, per audience) — replacing the single `AI_COACH_ENABLED` flag, so the coach (and any future second AI feature) can be rolled out independently without a redeploy.
+
 ## v0.5.0 — Learning Intelligence (Mastery, Adaptive Missions, Parent Dashboard)
 
-A single release boundary covering Phases 5.1–5.3: the deterministic learning-intelligence foundation — mastery scoring, adaptive mission generation, and the Parent Intelligence Dashboard — all non-AI, all independently tested. Everything after this (AI coaching, gamification, exam readiness) builds on this foundation rather than changing it; see `docs/Architecture.md` → "Planned: AI Gateway module" and "Planned: `learning-intelligence` facade" for the architectural decisions made ahead of that next stage.
+A single release boundary covering Phases 5.1–5.3: the deterministic learning-intelligence foundation — mastery scoring, adaptive mission generation, and the Parent Intelligence Dashboard — all non-AI, all independently tested. Everything after this (AI coaching, gamification, exam readiness) builds on this foundation rather than changing it; see `docs/Architecture.md` → "AI Platform (Phase 5.4)" and "Planned: `learning-intelligence` facade" for the architectural decisions made ahead of that next stage.
 
 ### Added — mastery engine (Phase 5.1)
 

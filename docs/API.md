@@ -119,6 +119,28 @@ Auth required. Returns the learner's aggregated learning profile — overall mas
 **Response** `200` → `LearnerProfileSummary` (see `mastery.types.ts`).
 **Errors**: `400` invalid learner id · `401` · `403` learner not owned · `500`.
 
+## `GET /api/learners/[learnerId]/coach?audience=learner|parent`
+
+Auth required. The one caller of the AI Platform (`src/modules/ai/`, Phase 5.4) — see `docs/Architecture.md` → "AI Platform (Phase 5.4)" for the full build/cache/grounding/fallback flow. Never returns a provider error: any AI-side failure (disabled, missing credentials, timeout, 429, malformed JSON, failed response/grounding validation) transparently falls back to a deterministic, non-AI coaching message built from the same learning data. Repeated calls for an unchanged learner/audience are served from a database cache (`ai_coaching_messages`) rather than re-calling the model.
+
+**Query params**: `audience` — `"learner"` or `"parent"`, required.
+**Response** `200`:
+
+```json
+{
+  "headline": "",
+  "message": "",
+  "strengths": [],
+  "focusAreas": [],
+  "nextSteps": [],
+  "source": "ai",
+  "cached": true
+}
+```
+
+`source` is `"ai"` or `"fallback"` — never leaks which provider or why a fallback happened. No page renders this endpoint yet.
+**Errors**: `400` invalid learner id or missing/invalid `audience` · `401` · `403` learner not owned · `500` (generic — provider/internal error details are never included in the response body).
+
 ## Parent Intelligence Dashboard (Phase 5.3)
 
 `/parent/learners/[learnerId]` is a Server Component page, not an `/api/**` route — it calls `ParentDashboardService` directly server-side, the same pattern `/learner/dashboard` already uses for mission/mastery data. No new API endpoint was added for it; see `docs/Architecture.md` → "Parent Intelligence Dashboard" for the service/repository it's built on.
