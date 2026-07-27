@@ -6,7 +6,6 @@ import {
   type PromptBuild,
 } from "./prompt-shared";
 
-export const LEARNER_PROMPT_VERSION = "coach-v1";
 const LEARNER_MAX_WORDS = 80;
 
 const LEARNER_AUDIENCE_RULES = [

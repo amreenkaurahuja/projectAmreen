@@ -6,7 +6,6 @@ import {
   type PromptBuild,
 } from "./prompt-shared";
 
-export const PARENT_PROMPT_VERSION = "coach-v1";
 const PARENT_MAX_WORDS = 160;
 
 const PARENT_AUDIENCE_RULES = [

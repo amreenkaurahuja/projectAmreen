@@ -20,6 +20,16 @@ import type {
 } from "./coach.types";
 
 const SCHEMA_VERSION = "1.0" as const;
+/**
+ * The single source of truth for the prompt contract version — the only
+ * place it's defined. It's embedded in every LearnerCoachingContext, which
+ * means it's included in cache/context-hash.ts's hash: bumping this value
+ * (e.g. to "coach-v2") is what actually invalidates previously-cached
+ * responses, since a changed hash is a guaranteed cache miss. The audience
+ * prompt builders (prompts/learner-prompt.ts, prompts/parent-prompt.ts)
+ * deliberately do not define their own version constants — both audiences
+ * share one prompt-contract version, versioned together here, not per file.
+ */
 const PROMPT_VERSION = "coach-v1" as const;
 
 /** Human-readable titles for the deterministic recommendation engine's fixed rule set (recommendation-engine.ts). */

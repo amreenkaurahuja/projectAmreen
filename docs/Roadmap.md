@@ -43,3 +43,5 @@ Phase 5.2 shipped the deterministic adaptive mission generator (see Shipped, abo
 - Branch per unit of work (`feature/*` off `develop`), PR into `develop` (or directly into `main` for now, per current team size) with `quality` + `e2e` checks required to pass — see `docs/CodingStandards.md`.
 - Update the GitHub Project card's column as work moves through Backlog → Ready → In Progress → Review → Testing → Done.
 - When a phase/epic ships, add an entry to `docs/ReleaseNotes.md`.
+- **Rule 13 (added at Release 0.6):** no new feature work starts while release-blocking quality work is outstanding. If a completion audit (see `docs/ReleaseReadiness.md`) finds a **Testing**, **Documentation**, **Security**, or **Architecture** category below ✅, that gets fixed before anything else is picked up — not queued behind it. This is what keeps feature velocity from quietly eroding quality one "we'll fix it later" at a time.
+- Before tagging any release, fill in one instance of the Release Readiness Matrix — see `docs/ReleaseReadiness.md` for the template and the current entries.
