@@ -13,6 +13,7 @@ import type { ParentDashboardData } from "@/modules/parent-dashboard/dashboard.t
 import { SupabaseMasteryRepository } from "@/modules/learning-profile/mastery.repository";
 import { SupabaseAdaptiveDataRepository } from "@/modules/adaptive-learning/adaptive-mission.repository";
 import { SupabaseMissionCompletionRepository } from "@/modules/missions/mission-completion.repository";
+import { CoachCard } from "@/components/ai/coach-card";
 
 const paramsSchema = z.object({ learnerId: z.string().uuid() });
 
@@ -80,6 +81,12 @@ export default async function ParentLearnerInsightsPage({
         </p>
         <h1 className="mt-1 text-3xl font-semibold">{data.learnerName}</h1>
       </header>
+
+      <CoachCard
+        learnerId={data.learnerId}
+        audience="parent"
+        hasData={data.hasData}
+      />
 
       {!data.hasData ? (
         <p className="mt-8 rounded-2xl border p-6 text-neutral-600">

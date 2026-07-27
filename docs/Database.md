@@ -179,6 +179,27 @@ RLS: single `for all` policy via `learners → parent_id = auth.uid()`.
 
 **Skill resolution**: as of migration `0008`, `question_bank.skill_id` is `not null`, so every question resolves to a skill directly. `SupabaseMasteryRepository.getQuestionCurriculumMetadata` still has a fallback to the question's topic's sole active skill, kept only as a defensive path for pre-0008 data in an environment that hasn't run that migration yet; if a topic has zero or more than one active skill, no skill can be resolved via that fallback and the attempt is skipped for mastery purposes (the answer itself is still graded and saved normally).
 
+### `ai_coaching_messages` (0010)
+
+Caches one AI-generated (never a fallback — see below) coaching message per learner, per audience, per exact snapshot of that learner's learning data. See `docs/Architecture.md` → "AI Platform (Phase 5.4)" for the full read/write flow.
+
+| column                                     | type                    | notes                                                                                                                           |
+| ------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                       | `uuid` PK               |                                                                                                                                 |
+| `learner_id`                               | `uuid` → `learners(id)` | `on delete cascade`                                                                                                             |
+| `audience`                                 | `text`                  | `'learner'` or `'parent'`                                                                                                       |
+| `context_hash`                             | `text`                  | SHA-256 of the canonical-JSON `LearnerCoachingContext` (`cache/context-hash.ts`)                                                |
+| `schema_version` / `prompt_version`        | `text`                  | from the DTO that produced this message                                                                                         |
+| `provider` / `model`                       | `text`                  | which provider/model produced it (`"gemini"` / e.g. `"gemini-2.5-flash"`)                                                       |
+| `headline` / `message`                     | `text`                  |                                                                                                                                 |
+| `strengths` / `focus_areas` / `next_steps` | `jsonb`                 | string arrays                                                                                                                   |
+| `source`                                   | `text`                  | `'ai'` or `'fallback'` — only `'ai'` rows are ever written in practice                                                          |
+| `created_at` / `expires_at`                | `timestamptz`           | `expires_at` defaults to a 24h TTL from `AiCoachService`, rarely reached in practice since a changed context hashes differently |
+
+Unique: `(learner_id, audience, context_hash)` — the mechanism behind both the cache hit/miss check and the concurrency handling (a losing concurrent insert hits this constraint and its result is discarded in favor of a re-`find()` of the winning row; see `cache/ai-cache.repository.ts`).
+Index: `ai_coaching_messages_learner_idx` on `(learner_id)`.
+RLS: single `for all` policy via `learners → parent_id = auth.uid()`, matching every other learner-scoped table.
+
 ## Migrations
 
 | file                                       | adds                                                                                          |
@@ -190,6 +211,7 @@ RLS: single `for all` policy via `learners → parent_id = auth.uid()`.
 | `0007_phase5_learning_profile_mastery.sql` | `learner_skill_mastery`; adds `question_attempts.mastery_processed_at`                        |
 | `0008_backfill_question_skill.sql`         | backfills `question_bank.skill_id`, makes it `not null`                                       |
 | `0009_phase5_adaptive_missions.sql`        | adds `mission_items.selection_reason`, `missions.generation_strategy`/`generation_metadata`   |
+| `0010_phase5_ai_learning_coach.sql`        | `ai_coaching_messages`                                                                        |
 
 Migrations are written to be **idempotent** (`create table if not exists`, `create index if not exists`, `drop policy if exists` before `create policy`, seed inserts use `on conflict do update`) so they're safe to re-run. Apply new migrations through the Supabase CLI / dashboard SQL editor in numeric order.
 

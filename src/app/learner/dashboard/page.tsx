@@ -9,6 +9,7 @@ import { AdaptiveMissionService } from "@/modules/adaptive-learning/adaptive-mis
 import { SupabaseAdaptiveDataRepository } from "@/modules/adaptive-learning/adaptive-mission.repository";
 import { SupabaseMasteryRepository } from "@/modules/learning-profile/mastery.repository";
 import { MasteryService } from "@/modules/learning-profile/mastery.service";
+import { CoachCard } from "@/components/ai/coach-card";
 
 const learnerIdSchema = z.string().uuid();
 
@@ -160,6 +161,12 @@ export default async function LearnerDashboard({
           →
         </Link>
       </section>
+
+      <CoachCard
+        learnerId={profile.id}
+        audience="learner"
+        hasData={learningProfile.hasData}
+      />
 
       <section className="mt-9" aria-labelledby="learning-profile-heading">
         <div>
