@@ -1,0 +1,169 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export class ExplainerRepositoryError extends Error {}
+export class ExplainerAccessError extends ExplainerRepositoryError {}
+
+/** Everything the context builder and eligibility check need — already reduced to scalars, never a raw row, before it leaves this repository. */
+export interface ExplanationSourceData {
+  attemptId: string;
+  isCorrect: boolean;
+  questionId: string;
+  skillId: string;
+  skillName: string;
+  subjectName: string;
+  difficulty: number;
+  prompt: string;
+  learnerAnswerLabel: string;
+  correctAnswerLabel: string;
+  authoredExplanation: string;
+}
+
+export interface QuestionExplainerRepository {
+  getAuthenticatedUserId(): Promise<string>;
+  assertLearnerOwned(learnerId: string): Promise<void>;
+  getLearnerDisplayName(learnerId: string): Promise<string | null>;
+  /** Null covers "doesn't exist", "unanswered", and "belongs to another learner" alike — scoped by learnerId here rather than left to the caller, so a mismatched attempt never reveals whether it exists at all. */
+  getExplanationSource(params: {
+    learnerId: string;
+    attemptId: string;
+  }): Promise<ExplanationSourceData | null>;
+}
+
+interface RawOptionRow {
+  id: string;
+  label: string;
+  is_correct: boolean;
+}
+
+interface RawQuestionRow {
+  id: string;
+  prompt: string;
+  explanation: string;
+  difficulty: number | null;
+  skill_id: string;
+  subjects: { name: string };
+  skills: { name: string };
+  question_options: RawOptionRow[];
+}
+
+interface RawMissionItemRow {
+  missions: { learner_id: string };
+  question_bank: RawQuestionRow;
+}
+
+interface RawAttemptRow {
+  id: string;
+  is_correct: boolean;
+  question_id: string;
+  selected_option_id: string;
+  mission_items: RawMissionItemRow;
+}
+
+export class SupabaseQuestionExplainerRepository implements QuestionExplainerRepository {
+  constructor(private readonly supabase: SupabaseClient) {}
+
+  async getAuthenticatedUserId(): Promise<string> {
+    const { data, error } = await this.supabase.auth.getUser();
+    if (error || !data.user) {
+      throw new ExplainerAccessError("Authentication required");
+    }
+    return data.user.id;
+  }
+
+  async assertLearnerOwned(learnerId: string): Promise<void> {
+    const userId = await this.getAuthenticatedUserId();
+    const { data, error } = await this.supabase
+      .from("learners")
+      .select("id")
+      .eq("id", learnerId)
+      .eq("parent_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      throw new ExplainerRepositoryError(
+        `Unable to verify learner ownership: ${error.message}`,
+      );
+    }
+    if (!data) {
+      throw new ExplainerAccessError(
+        "Learner is not owned by the current user",
+      );
+    }
+  }
+
+  async getLearnerDisplayName(learnerId: string): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from("learners")
+      .select("display_name")
+      .eq("id", learnerId)
+      .maybeSingle();
+
+    if (error) {
+      throw new ExplainerRepositoryError(
+        `Unable to load learner: ${error.message}`,
+      );
+    }
+    return data?.display_name ?? null;
+  }
+
+  async getExplanationSource(params: {
+    learnerId: string;
+    attemptId: string;
+  }): Promise<ExplanationSourceData | null> {
+    const { data, error } = await this.supabase
+      .from("question_attempts")
+      .select(
+        `
+        id, is_correct, question_id, selected_option_id,
+        mission_items!inner(
+          missions!inner(learner_id),
+          question_bank!inner(
+            id, prompt, explanation, difficulty, skill_id,
+            subjects!inner(name),
+            skills!inner(name),
+            question_options(id,label,is_correct)
+          )
+        )
+      `,
+      )
+      .eq("id", params.attemptId)
+      .maybeSingle();
+
+    if (error) {
+      throw new ExplainerRepositoryError(
+        `Unable to load attempt for explanation: ${error.message}`,
+      );
+    }
+    if (!data) return null;
+
+    const row = data as unknown as RawAttemptRow;
+    // Scoped here rather than in the query itself (the learner_id lives two
+    // joins away) — same reasoning as adaptive-mission.repository.ts's
+    // loadRecentAttemptRows comment on filtering embedded-relation columns.
+    if (row.mission_items.missions.learner_id !== params.learnerId) {
+      return null;
+    }
+
+    const question = row.mission_items.question_bank;
+    const selectedOption = question.question_options.find(
+      (option) => option.id === row.selected_option_id,
+    );
+    const correctOption = question.question_options.find(
+      (option) => option.is_correct,
+    );
+
+    return {
+      attemptId: row.id,
+      isCorrect: row.is_correct,
+      questionId: row.question_id,
+      skillId: question.skill_id,
+      skillName: question.skills.name,
+      subjectName: question.subjects.name,
+      difficulty: question.difficulty ?? 1,
+      prompt: question.prompt,
+      learnerAnswerLabel: selectedOption?.label ?? "",
+      correctAnswerLabel: correctOption?.label ?? "",
+      authoredExplanation: question.explanation,
+    };
+  }
+}
