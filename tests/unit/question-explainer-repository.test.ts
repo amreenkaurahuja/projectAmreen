@@ -39,6 +39,8 @@ function buildSupabase(overrides: {
   attemptError?: unknown;
   questionPromptRow?: unknown;
   questionPromptError?: unknown;
+  learnerIdRow?: unknown;
+  learnerIdError?: unknown;
 }) {
   return {
     auth: {
@@ -87,15 +89,30 @@ function buildSupabase(overrides: {
       }
       if (table === "question_attempts") {
         return {
-          select: vi.fn(() => ({
+          select: vi.fn((columns: string) => ({
             eq: vi.fn(() => ({
-              maybeSingle: vi.fn(async () => ({
-                data:
-                  overrides.attemptRow === undefined
-                    ? FULL_ATTEMPT_ROW
-                    : overrides.attemptRow,
-                error: overrides.attemptError ?? null,
-              })),
+              maybeSingle: vi.fn(async () => {
+                if (columns.includes("question_bank")) {
+                  return {
+                    data:
+                      overrides.attemptRow === undefined
+                        ? FULL_ATTEMPT_ROW
+                        : overrides.attemptRow,
+                    error: overrides.attemptError ?? null,
+                  };
+                }
+                return {
+                  data:
+                    overrides.learnerIdRow === undefined
+                      ? {
+                          mission_items: {
+                            missions: { learner_id: "learner-1" },
+                          },
+                        }
+                      : overrides.learnerIdRow,
+                  error: overrides.learnerIdError ?? null,
+                };
+              }),
             })),
           })),
         };
@@ -268,6 +285,33 @@ describe("SupabaseQuestionExplainerRepository.getQuestionPromptById", () => {
     );
     await expect(
       repository.getQuestionPromptById("question-2"),
+    ).rejects.toThrow(ExplainerRepositoryError);
+  });
+});
+
+describe("SupabaseQuestionExplainerRepository.getLearnerIdForAttempt", () => {
+  it("returns the resolved learner id", async () => {
+    const repository = new SupabaseQuestionExplainerRepository(
+      buildSupabase({}) as never,
+    );
+    expect(await repository.getLearnerIdForAttempt("attempt-1")).toBe(
+      "learner-1",
+    );
+  });
+
+  it("returns null when no attempt is visible (doesn't exist, or RLS hides another parent's)", async () => {
+    const repository = new SupabaseQuestionExplainerRepository(
+      buildSupabase({ learnerIdRow: null }) as never,
+    );
+    expect(await repository.getLearnerIdForAttempt("attempt-1")).toBeNull();
+  });
+
+  it("throws ExplainerRepositoryError on a database error", async () => {
+    const repository = new SupabaseQuestionExplainerRepository(
+      buildSupabase({ learnerIdError: { message: "boom" } }) as never,
+    );
+    await expect(
+      repository.getLearnerIdForAttempt("attempt-1"),
     ).rejects.toThrow(ExplainerRepositoryError);
   });
 });

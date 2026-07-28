@@ -29,6 +29,18 @@ export interface QuestionExplainerRepository {
   }): Promise<ExplanationSourceData | null>;
   /** Used only to look up a deterministically-selected follow-up question's prompt text for the context (PS-007 §4) — never its id, and never used to grade or select it. Active-question scoping is already guaranteed by FollowUpQuestionSelector; this is a plain lookup, not an eligibility check. */
   getQuestionPromptById(questionId: string): Promise<string | null>;
+  /**
+   * TDS-007 Stage 4: the client never sends a learner id, only an
+   * attemptId — this is how the API route resolves which learner an
+   * attempt belongs to before calling QuestionExplainerService, which
+   * still takes an explicit learnerId (Stage 1-3 unchanged). Null covers
+   * "doesn't exist" and "belongs to another learner" alike, same as
+   * getExplanationSource — this table's RLS policy (0004's "Parents manage
+   * own attempts") already restricts every query here to the current
+   * session's own learners, so a mismatched attempt is invisible at the
+   * database level, not just filtered in application code.
+   */
+  getLearnerIdForAttempt(attemptId: string): Promise<string | null>;
 }
 
 interface RawOptionRow {
@@ -182,5 +194,25 @@ export class SupabaseQuestionExplainerRepository implements QuestionExplainerRep
       );
     }
     return data?.prompt ?? null;
+  }
+
+  async getLearnerIdForAttempt(attemptId: string): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from("question_attempts")
+      .select("mission_items!inner(missions!inner(learner_id))")
+      .eq("id", attemptId)
+      .maybeSingle();
+
+    if (error) {
+      throw new ExplainerRepositoryError(
+        `Unable to resolve learner for attempt: ${error.message}`,
+      );
+    }
+    if (!data) return null;
+
+    const row = data as unknown as {
+      mission_items: { missions: { learner_id: string } };
+    };
+    return row.mission_items.missions.learner_id;
   }
 }
