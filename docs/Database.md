@@ -1,6 +1,6 @@
 # Database
 
-Postgres via Supabase. Schema lives entirely in `supabase/migrations/*.sql`, applied in order — that directory is the source of truth; this document is a readable summary of it as of migration `0009_phase5_adaptive_missions.sql`.
+Postgres via Supabase. Schema lives entirely in `supabase/migrations/*.sql`, applied in order — that directory is the source of truth; this document is a readable summary of it as of migration `0012_learning_events.sql`.
 
 Every table has Row Level Security **enabled**, and every policy is scoped through `auth.uid()` back to the owning parent. There is no table a signed-in user can read or write without an ownership chain back to their own `auth.uid()`, except the shared read-only curriculum catalogue (`subjects`, `topics`, `skills`, `learning_objectives`, `question_bank`, `question_options`), which any authenticated user can read.
 
@@ -14,6 +14,8 @@ auth.users (Supabase-managed)
        └─ missions (learner_id)
             └─ mission_items (mission_id, question_id)
                  └─ question_attempts (mission_item_id, question_id, selected_option_id)
+                      ├─ question_explanations (learner_id, attempt_id)
+                      └─ learning_events (learner_id, attempt_id)
 
 subjects
   └─ topics (subject_id)
@@ -23,6 +25,8 @@ subjects
 question_bank (subject_id, topic_id?, skill_id?)
   └─ question_options (question_id)
 ```
+
+Three distinct storage shapes coexist in this schema, and it matters which one a given table is: **current-state** tables hold one row per entity that the app updates in place as things change (`learners`, `missions`, `learner_skill_mastery`); **cache** tables hold one row per unique input, upserted on conflict and read through an `expires_at` filter (`ai_coaching_messages`, `question_explanations`); **event** tables hold one immutable row per occurrence, insert-only, with no update or delete path at all (`learning_events`, the only table of this shape as of `0012` — see TDS-008 §9).
 
 ## Tables
 
@@ -200,18 +204,62 @@ Unique: `(learner_id, audience, context_hash)` — the mechanism behind both the
 Index: `ai_coaching_messages_learner_idx` on `(learner_id)`.
 RLS: single `for all` policy via `learners → parent_id = auth.uid()`, matching every other learner-scoped table.
 
+### `question_explanations` (0011)
+
+Caches one AI-generated (never a fallback) explanation response per learner, per attempt-audience-context snapshot. Mirrors `ai_coaching_messages` exactly, as a dedicated table rather than an extension of it (its response shape doesn't match `CoachResponse`'s columns). See TDS-007 Stage 3.
+
+| column                                               | type                             | notes                                       |
+| ---------------------------------------------------- | -------------------------------- | ------------------------------------------- |
+| `id`                                                 | `uuid` PK                        |                                             |
+| `learner_id`                                         | `uuid` → `learners(id)`          | `on delete cascade`                         |
+| `attempt_id`                                         | `uuid` → `question_attempts(id)` | `on delete cascade`                         |
+| `audience`                                           | `text`                           | `'learner'` or `'parent'`                   |
+| `context_hash` / `prompt_version` / `schema_version` | `text`                           |                                             |
+| `response_json`                                      | `jsonb`                          | the validated `QuestionExplanationResponse` |
+| `response_source`                                    | `text`                           | `'ai'` or `'fallback'`                      |
+| `provider` / `model`                                 | `text`                           |                                             |
+| `created_at` / `expires_at`                          | `timestamptz`                    |                                             |
+
+Unique: `(learner_id, audience, context_hash)`.
+Indexes: `question_explanations_learner_idx` on `(learner_id)`, `question_explanations_attempt_idx` on `(attempt_id)`.
+RLS: single `for all` policy via `learners → parent_id = auth.uid()`.
+
+### `learning_events` (0012)
+
+The project's first append-only event store: one immutable row per educational interaction event emitted by `QuestionExplainerFlow`'s `LearningEventPublisher` (Stage 6.1). Schema-only as of `0012` — no repository or endpoint writes to it yet; that's Stage 6.3. See TDS-008 §9 (Persistence Architecture) and ADR-008-1 for the full architectural decision and rationale.
+
+| column        | type                             | notes                                                                                       |
+| ------------- | -------------------------------- | ------------------------------------------------------------------------------------------- |
+| `id`          | `uuid` PK                        |                                                                                             |
+| `learner_id`  | `uuid` → `learners(id)`          | `on delete cascade` — populated server-side by Stage 6.3, never client-supplied             |
+| `attempt_id`  | `uuid` → `question_attempts(id)` | `on delete cascade`                                                                         |
+| `session_id`  | `uuid`                           | correlation identifier only — not a FK, never a primary key (TDS-008 §9.7)                  |
+| `event_type`  | `text`                           | `explanation_opened` \| `step_viewed` \| `explanation_completed` \| `explanation_abandoned` |
+| `step`        | `text`                           | nullable; set only on `step_viewed`                                                         |
+| `last_step`   | `text`                           | nullable; set only on `explanation_abandoned`                                               |
+| `exit_method` | `text`                           | nullable; set only on `explanation_abandoned`                                               |
+| `duration_ms` | `integer`                        | nullable; set on `explanation_completed`/`explanation_abandoned`                            |
+| `occurred_at` | `timestamptz`                    | client-observed event time                                                                  |
+| `created_at`  | `timestamptz`                    | server-generated on insert — no `updated_at` column; rows are never updated (TDS-008 §9.6)  |
+
+A table-level check constraint mirrors the `LearningEvent` TypeScript discriminated union: each `event_type` has an exact, non-overlapping set of populated optional columns.
+Indexes: `learning_events_learner_idx` on `(learner_id)`, `learning_events_attempt_idx` on `(attempt_id)`, `learning_events_session_idx` on `(session_id)`. No `event_type`/`step`-specific indexes yet — deferred until Stage 6.4 defines real reporting queries (the Stage 0 persistence audit's own "queries determine indexes" finding).
+RLS: **select** and **insert** policies only, both via `learners → parent_id = auth.uid()` — deliberately no `update`/`delete` policy, so immutability is enforced structurally rather than by application convention alone.
+
 ## Migrations
 
-| file                                       | adds                                                                                          |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `0001_phase0_health.sql`                   | `system_health`                                                                               |
-| `0002_phase1_identity.sql`                 | `learners`                                                                                    |
-| `0003_phase2_curriculum.sql`               | `subjects`, `topics`, `skills`, `learning_objectives`, `learner_subject_progress` + seed data |
-| `0004_phase3a_daily_missions.sql`          | `question_bank`, `question_options`, `missions`, `mission_items`, `question_attempts`         |
-| `0007_phase5_learning_profile_mastery.sql` | `learner_skill_mastery`; adds `question_attempts.mastery_processed_at`                        |
-| `0008_backfill_question_skill.sql`         | backfills `question_bank.skill_id`, makes it `not null`                                       |
-| `0009_phase5_adaptive_missions.sql`        | adds `mission_items.selection_reason`, `missions.generation_strategy`/`generation_metadata`   |
-| `0010_phase5_ai_learning_coach.sql`        | `ai_coaching_messages`                                                                        |
+| file                                             | adds                                                                                          |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `0001_phase0_health.sql`                         | `system_health`                                                                               |
+| `0002_phase1_identity.sql`                       | `learners`                                                                                    |
+| `0003_phase2_curriculum.sql`                     | `subjects`, `topics`, `skills`, `learning_objectives`, `learner_subject_progress` + seed data |
+| `0004_phase3a_daily_missions.sql`                | `question_bank`, `question_options`, `missions`, `mission_items`, `question_attempts`         |
+| `0007_phase5_learning_profile_mastery.sql`       | `learner_skill_mastery`; adds `question_attempts.mastery_processed_at`                        |
+| `0008_backfill_question_skill.sql`               | backfills `question_bank.skill_id`, makes it `not null`                                       |
+| `0009_phase5_adaptive_missions.sql`              | adds `mission_items.selection_reason`, `missions.generation_strategy`/`generation_metadata`   |
+| `0010_phase5_ai_learning_coach.sql`              | `ai_coaching_messages`                                                                        |
+| `0011_phase5_question_explainer_persistence.sql` | `question_explanations`                                                                       |
+| `0012_learning_events.sql`                       | `learning_events`                                                                             |
 
 Migrations are written to be **idempotent** (`create table if not exists`, `create index if not exists`, `drop policy if exists` before `create policy`, seed inserts use `on conflict do update`) so they're safe to re-run. Apply new migrations through the Supabase CLI / dashboard SQL editor in numeric order.
 
