@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/), grouped by shipped milestone rather than by individual commit — see `docs/ReleaseNotes.md` for the more detailed, chronological version, and `git log` for full commit history.
 
+## v0.7.0 — AI Learning Companion (Question Explainer) & Learning Metrics
+
+Two capabilities built on top of the AI Platform (v0.6.0), each following the project's document-driven governance cadence (PRS/TDS/LDS → staged implementation, with an architecture retrospective — `docs/ARS-001-release-0.7-retrospective.md` — between them): the Question Explainer, a per-mistake AI explanation reusing the AI Platform's gateway/budget/health/logger unchanged, and a passive, feature-flagged learning-metrics pipeline that observes how learners use it without ever influencing that experience (TDS-008).
+
+### Added — Question Explainer (TDS-007/PS-007)
+
+- `src/modules/question-explainer/` — deterministic eligibility/context/fallback (Stage 1), Gemini prompt builders/response schema/grounding validator (Stage 2), and a dedicated `question_explanations` cache table (`0011_phase5_question_explainer_persistence.sql`, Stage 3), mirroring `ai_coaching_messages`'s cache-and-concurrency pattern rather than extending it.
+- `POST /api/v1/question-explanations` (Stage 4) — a thin, versioned transport route; the client sends only `{attemptId, audience}`, never a learner id, prompt/schema version, context hash, correct answer, or follow-up id. Learner identity is resolved server-side from `attemptId` (`QuestionExplainerRepository.getLearnerIdForAttempt`), the pattern every later learner-identity-needing route in this release reused rather than accepting client-supplied identity.
+- `QuestionExplainerFlow` (Stage 5, `src/components/question-explainer/question-explainer-flow.tsx`) — the four-screen progressive-disclosure learner experience on the Review Mistakes screen (acknowledge → why → worked example → next action), built to LDS-001's accessibility minimums (WCAG AA, keyboard nav, a dyslexia-friendly reading-mode toggle, `prefers-reduced-motion` support) and reviewed against real screenshots/recording of the full learner journey, not automated tests alone.
+- `AI_QUESTION_EXPLAINER_ENABLED` feature flag, layered on `AI_ENABLED` and the existing per-audience flags — no new flag pair introduced.
+
+### Added — Learning Metrics (TDS-008)
+
+- `src/modules/question-explainer/explanation-event.types.ts` + `explanation-event-publisher.ts` (Stage 6.1) — the canonical educational-event vocabulary (`explanation_opened`/`step_viewed`/`explanation_completed`/`explanation_abandoned`) and the `LearningEventPublisher` boundary `QuestionExplainerFlow` depends on; the shipped default is `noOpLearningEventPublisher`, making "metrics never influence behaviour" true by construction rather than by convention.
+- `learning_events` (`0012_learning_events.sql`, Stage 6.2) — the project's first append-only event table: immutable historical facts, not mutable summaries, with a table-level `CHECK` constraint mirroring the `LearningEvent` TypeScript union, and RLS deliberately restricted to select+insert only (no update/delete policy), enforcing immutability structurally rather than by application convention.
+- `event_id` (`0013_learning_event_identity.sql`, Stage 6.3A) — a capability-owned identifier for one educational occurrence, generated once inside the publisher boundary (`crypto.randomUUID()`), distinct from the database row id, the `session_id` (one explanation-flow interaction), and the operational `requestId`.
+- `POST /api/v1/learning-events`, `LearningEventDeliveryService`, `SupabaseLearningEventRepository`, and the first real (non-no-op) `httpLearningEventPublisher` (Stage 6.3B) — one delivery attempt per event, no retry, no batching; a duplicate `event_id` resolves to a successful no-op rather than an error.
+- `NEXT_PUBLIC_QUESTION_EXPLAINER_METRICS_ENABLED` (Stage 6.3C) — a client-evaluated, build-time-inlined flag selecting `QuestionExplainerFlow`'s default publisher (no-op vs. HTTP); shipped disabled, and merging this code did not itself change learner-visible or production behaviour.
+- `SupabaseQuestionExplainerMetricsRepository` + `calculateQuestionExplainerMetrics` (Stage 6.4) — the reporting read model: `explanationsOpened/Completed/Abandoned`, `completionRate`/`abandonmentRate` (never clamped above 1 — a rate exceeding 1 is truthful evidence of incomplete best-effort delivery, not an error), `abandonmentByStep`, `stepProgression` (unique sessions per step, no inference), and median/p90 elapsed-flow-time. A library surface only — no reporting route, dashboard, or UI, per TDS-008's explicit scope.
+- `docs/testing/learning-metrics-behaviour.md` (Stage 6.5) — a full contract-to-test traceability matrix, produced by exercising the real end-to-end pipeline (component → HTTP publisher → real route → real validation → real repositories → real calculation service) against an in-memory persistence boundary. No defect found; no TDS-008 contradiction.
+
+### Known gaps at this tag
+
+- Best-effort metrics delivery (one attempt, no retry) means incomplete sessions are expected, not corruption — see `docs/testing/learning-metrics-behaviour.md` for exactly what the reporting layer does and doesn't tolerate.
+- No subsequent-correctness metric ("did the learner do better on the next similar question?") — LDS-002 explicitly deferred this; the data needed to attempt it later is preserved (identifiers/timestamps), but no comparison rule has been chosen.
+- No reporting UI, dashboard, or parent-facing analytics — explicitly out of scope for this release (LDS-002 §3, TDS-008 §15).
+- Migration application remains a fully manual step, decoupled from Vercel's automatic deploy-on-merge — see `docs/releases/release-0.7-rollout.md`.
+- Inherited from v0.6.0, still open: no dedicated preview/staging Supabase project (Preview and Production share one database); no live Sentry project configured.
+
 ## v0.6.0 — Learning Intelligence Platform (AI Learning Coach)
 
 The AI Learning Coach: Project Amreen's deterministic learning-intelligence engines (mastery, adaptive missions, recommendations — all v0.5.0) gain a natural-language communication layer, built so AI explains what the deterministic engines already decided and never decides anything itself (`docs/AI_CONSTITUTION.md`). A completion audit (SDS-002) and a follow-up hardening pass closed the gaps it found before this tag — see `docs/ReleaseReadiness.md` for the full readiness matrix.
