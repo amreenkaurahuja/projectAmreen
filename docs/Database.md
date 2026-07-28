@@ -1,6 +1,6 @@
 # Database
 
-Postgres via Supabase. Schema lives entirely in `supabase/migrations/*.sql`, applied in order — that directory is the source of truth; this document is a readable summary of it as of migration `0012_learning_events.sql`.
+Postgres via Supabase. Schema lives entirely in `supabase/migrations/*.sql`, applied in order — that directory is the source of truth; this document is a readable summary of it as of migration `0013_learning_event_identity.sql`.
 
 Every table has Row Level Security **enabled**, and every policy is scoped through `auth.uid()` back to the owning parent. There is no table a signed-in user can read or write without an ownership chain back to their own `auth.uid()`, except the shared read-only curriculum catalogue (`subjects`, `topics`, `skills`, `learning_objectives`, `question_bank`, `question_options`), which any authenticated user can read.
 
@@ -224,26 +224,27 @@ Unique: `(learner_id, audience, context_hash)`.
 Indexes: `question_explanations_learner_idx` on `(learner_id)`, `question_explanations_attempt_idx` on `(attempt_id)`.
 RLS: single `for all` policy via `learners → parent_id = auth.uid()`.
 
-### `learning_events` (0012)
+### `learning_events` (0012; `event_id` added in 0013)
 
-The project's first append-only event store: one immutable row per educational interaction event emitted by `QuestionExplainerFlow`'s `LearningEventPublisher` (Stage 6.1). Schema-only as of `0012` — no repository or endpoint writes to it yet; that's Stage 6.3. See TDS-008 §9 (Persistence Architecture) and ADR-008-1 for the full architectural decision and rationale.
+The project's first append-only event store: one immutable row per educational interaction event emitted by `QuestionExplainerFlow`'s `LearningEventPublisher` (Stage 6.1). Schema-only as of `0013` — no repository or endpoint writes to it yet; that's Stage 6.3B. See TDS-008 §9 (Persistence Architecture), §10 (Delivery & Idempotency) and ADR-008-1 for the full architectural decision and rationale.
 
-| column        | type                             | notes                                                                                       |
-| ------------- | -------------------------------- | ------------------------------------------------------------------------------------------- |
-| `id`          | `uuid` PK                        |                                                                                             |
-| `learner_id`  | `uuid` → `learners(id)`          | `on delete cascade` — populated server-side by Stage 6.3, never client-supplied             |
-| `attempt_id`  | `uuid` → `question_attempts(id)` | `on delete cascade`                                                                         |
-| `session_id`  | `uuid`                           | correlation identifier only — not a FK, never a primary key (TDS-008 §9.7)                  |
-| `event_type`  | `text`                           | `explanation_opened` \| `step_viewed` \| `explanation_completed` \| `explanation_abandoned` |
-| `step`        | `text`                           | nullable; set only on `step_viewed`                                                         |
-| `last_step`   | `text`                           | nullable; set only on `explanation_abandoned`                                               |
-| `exit_method` | `text`                           | nullable; set only on `explanation_abandoned`                                               |
-| `duration_ms` | `integer`                        | nullable; set on `explanation_completed`/`explanation_abandoned`                            |
-| `occurred_at` | `timestamptz`                    | client-observed event time                                                                  |
-| `created_at`  | `timestamptz`                    | server-generated on insert — no `updated_at` column; rows are never updated (TDS-008 §9.6)  |
+| column        | type                             | notes                                                                                                                                                                                                        |
+| ------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`          | `uuid` PK                        | the database row — distinct from `event_id` (TDS-008 §10.8)                                                                                                                                                  |
+| `event_id`    | `uuid`                           | **unique** (0013) — one educational occurrence; generated once by the publisher (`crypto.randomUUID()`), never by the database. Redelivering the same occurrence reuses it; a new occurrence gets a new one. |
+| `learner_id`  | `uuid` → `learners(id)`          | `on delete cascade` — populated server-side by Stage 6.3B, never client-supplied                                                                                                                             |
+| `attempt_id`  | `uuid` → `question_attempts(id)` | `on delete cascade`                                                                                                                                                                                          |
+| `session_id`  | `uuid`                           | correlation identifier only — one explanation-flow interaction, shared by many events; not a FK, never a primary key (TDS-008 §9.7)                                                                          |
+| `event_type`  | `text`                           | `explanation_opened` \| `step_viewed` \| `explanation_completed` \| `explanation_abandoned`                                                                                                                  |
+| `step`        | `text`                           | nullable; set only on `step_viewed`                                                                                                                                                                          |
+| `last_step`   | `text`                           | nullable; set only on `explanation_abandoned`                                                                                                                                                                |
+| `exit_method` | `text`                           | nullable; set only on `explanation_abandoned`                                                                                                                                                                |
+| `duration_ms` | `integer`                        | nullable; set on `explanation_completed`/`explanation_abandoned`                                                                                                                                             |
+| `occurred_at` | `timestamptz`                    | client-observed event time                                                                                                                                                                                   |
+| `created_at`  | `timestamptz`                    | server-generated on insert — no `updated_at` column; rows are never updated (TDS-008 §9.6)                                                                                                                   |
 
 A table-level check constraint mirrors the `LearningEvent` TypeScript discriminated union: each `event_type` has an exact, non-overlapping set of populated optional columns.
-Indexes: `learning_events_learner_idx` on `(learner_id)`, `learning_events_attempt_idx` on `(attempt_id)`, `learning_events_session_idx` on `(session_id)`. No `event_type`/`step`-specific indexes yet — deferred until Stage 6.4 defines real reporting queries (the Stage 0 persistence audit's own "queries determine indexes" finding).
+Indexes: `learning_events_learner_idx` on `(learner_id)`, `learning_events_attempt_idx` on `(attempt_id)`, `learning_events_session_idx` on `(session_id)`, `learning_events_event_id_unique_idx` (unique) on `(event_id)` — the mechanism Stage 6.3B's delivery service will use to treat a repeated delivery of the same occurrence as a successful no-op rather than a second row (TDS-008 §10.9). No `event_type`/`step`-specific indexes yet — deferred until Stage 6.4 defines real reporting queries.
 RLS: **select** and **insert** policies only, both via `learners → parent_id = auth.uid()` — deliberately no `update`/`delete` policy, so immutability is enforced structurally rather than by application convention alone.
 
 ## Migrations
@@ -260,6 +261,7 @@ RLS: **select** and **insert** policies only, both via `learners → parent_id =
 | `0010_phase5_ai_learning_coach.sql`              | `ai_coaching_messages`                                                                        |
 | `0011_phase5_question_explainer_persistence.sql` | `question_explanations`                                                                       |
 | `0012_learning_events.sql`                       | `learning_events`                                                                             |
+| `0013_learning_event_identity.sql`               | adds `learning_events.event_id` (unique)                                                      |
 
 Migrations are written to be **idempotent** (`create table if not exists`, `create index if not exists`, `drop policy if exists` before `create policy`, seed inserts use `on conflict do update`) so they're safe to re-run. Apply new migrations through the Supabase CLI / dashboard SQL editor in numeric order.
 

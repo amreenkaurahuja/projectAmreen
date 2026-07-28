@@ -360,3 +360,114 @@ describe("QuestionExplainerFlow learning event publishing", () => {
     expect(screen.getByText("Reviewed")).toBeInTheDocument();
   });
 });
+
+// TDS-008 Stage 6.3A — event identity (§10.8). Generation happens inside
+// the publisher boundary itself (crypto.randomUUID() at each event's
+// construction site in question-explainer-flow.tsx); no delivery path
+// exists yet, so "an event keeps the same id through delivery" isn't
+// testable end-to-end until Stage 6.3B — these tests confirm the identity
+// contract holds at the one place it's created.
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+describe("QuestionExplainerFlow event identity (TDS-008 §10.8)", () => {
+  it("assigns every published event a distinct, UUID-shaped eventId", async () => {
+    const user = userEvent.setup();
+    const { publisher, events } = createRecordingPublisher();
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(API_RESULT));
+    renderFlow(publisher);
+
+    await user.click(
+      screen.getByRole("button", { name: "Why did I get this wrong?" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Why?" }));
+    await screen.findByText("75% means three quarters.");
+    await user.click(screen.getByRole("button", { name: "Let's see one" }));
+    await user.click(screen.getByRole("button", { name: "Now you try" }));
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(events.length).toBeGreaterThan(0);
+    for (const event of events) {
+      expect(event.eventId).toMatch(UUID_PATTERN);
+    }
+    const uniqueIds = new Set(events.map((event) => event.eventId));
+    expect(uniqueIds.size).toBe(events.length);
+  });
+
+  it("never assigns eventId the same value as sessionId", async () => {
+    const user = userEvent.setup();
+    const { publisher, events } = createRecordingPublisher();
+    renderFlow(publisher);
+
+    await user.click(
+      screen.getByRole("button", { name: "Why did I get this wrong?" }),
+    );
+
+    expect(events.length).toBeGreaterThan(0);
+    for (const event of events) {
+      expect(event.eventId).not.toBe(event.sessionId);
+    }
+  });
+
+  it("keeps sessionId constant and eventId unique across every event in one session", async () => {
+    const user = userEvent.setup();
+    const { publisher, events } = createRecordingPublisher();
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(API_RESULT));
+    renderFlow(publisher);
+
+    await user.click(
+      screen.getByRole("button", { name: "Why did I get this wrong?" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Why?" }));
+    await screen.findByText("75% means three quarters.");
+    await user.click(screen.getByRole("button", { name: "Let's see one" }));
+
+    const sessionIds = new Set(events.map((event) => event.sessionId));
+    const eventIds = new Set(events.map((event) => event.eventId));
+    expect(sessionIds.size).toBe(1);
+    expect(eventIds.size).toBe(events.length);
+  });
+
+  it("assigns distinct eventIds to two separate abandonment occurrences", async () => {
+    const user = userEvent.setup();
+    const { publisher, events } = createRecordingPublisher();
+    renderFlow(publisher);
+
+    await user.click(
+      screen.getByRole("button", { name: "Why did I get this wrong?" }),
+    );
+    await user.keyboard("{Escape}");
+    await user.click(
+      screen.getByRole("button", { name: "Why did I get this wrong?" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Close explanation" }));
+
+    const abandoned = events.filter(
+      (event) => event.eventType === "explanation_abandoned",
+    );
+    expect(abandoned).toHaveLength(2);
+    expect(abandoned[0]!.eventId).not.toBe(abandoned[1]!.eventId);
+  });
+
+  it("passes eventId through to the publisher unchanged from where it was constructed", async () => {
+    const user = userEvent.setup();
+    const seenEventIds: string[] = [];
+    const publisher: LearningEventPublisher = {
+      publish: vi.fn((event: LearningEvent) => {
+        // Captured exactly as the publisher receives it — proves nothing
+        // between construction and publish() reassigns eventId.
+        seenEventIds.push(event.eventId);
+      }),
+    };
+    renderFlow(publisher);
+
+    await user.click(
+      screen.getByRole("button", { name: "Why did I get this wrong?" }),
+    );
+
+    expect(seenEventIds).toHaveLength(2);
+    expect(seenEventIds[0]).toMatch(UUID_PATTERN);
+    expect(seenEventIds[1]).toMatch(UUID_PATTERN);
+    expect(seenEventIds[0]).not.toBe(seenEventIds[1]);
+  });
+});
