@@ -88,6 +88,10 @@ const STEP_EVENT_NAME: Record<Screen, ExplanationStep> = {
  * Every `publisher.publish(...)` call below is fire-and-forget and never
  * gates or delays a state transition; the four-screen flow above behaves
  * identically whether a real publisher is wired in or not (AP-1).
+ *
+ * TDS-008 Stage 6.3A: each event gets its own `eventId` via
+ * `crypto.randomUUID()` at the exact point it's constructed below — this
+ * is the one and only place an event's identity is ever assigned (§10.8).
  */
 export function QuestionExplainerFlow({
   attemptId,
@@ -139,6 +143,7 @@ export function QuestionExplainerFlow({
     (exitMethod: ExplanationExitMethod) => {
       if (!sessionCompletedRef.current) {
         publisher.publish({
+          eventId: crypto.randomUUID(),
           eventType: "explanation_abandoned",
           attemptId,
           sessionId: sessionIdRef.current,
@@ -163,12 +168,14 @@ export function QuestionExplainerFlow({
     setScreen("acknowledge");
 
     publisher.publish({
+      eventId: crypto.randomUUID(),
       eventType: "explanation_opened",
       attemptId,
       sessionId: sessionIdRef.current,
       occurredAt: new Date().toISOString(),
     });
     publisher.publish({
+      eventId: crypto.randomUUID(),
       eventType: "step_viewed",
       attemptId,
       sessionId: sessionIdRef.current,
@@ -180,6 +187,7 @@ export function QuestionExplainerFlow({
   function finish() {
     sessionCompletedRef.current = true;
     publisher.publish({
+      eventId: crypto.randomUUID(),
       eventType: "explanation_completed",
       attemptId,
       sessionId: sessionIdRef.current,
@@ -193,6 +201,7 @@ export function QuestionExplainerFlow({
   function viewStep(screenName: Screen) {
     lastStepRef.current = STEP_EVENT_NAME[screenName];
     publisher.publish({
+      eventId: crypto.randomUUID(),
       eventType: "step_viewed",
       attemptId,
       sessionId: sessionIdRef.current,
@@ -280,6 +289,7 @@ export function QuestionExplainerFlow({
     return () => {
       if (isOpenRef.current && !sessionCompletedRef.current) {
         publisher.publish({
+          eventId: crypto.randomUUID(),
           eventType: "explanation_abandoned",
           attemptId,
           sessionId: sessionIdRef.current,

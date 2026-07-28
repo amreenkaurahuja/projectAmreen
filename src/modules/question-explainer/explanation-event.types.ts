@@ -29,8 +29,30 @@ export type ExplanationExitMethod =
  * event below omits it rather than send `undefined` for a field that looks
  * like it should exist. Revisit once Stage 6.2/6.3 decides whether the
  * persisted explanation record needs a client-visible id.
+ *
+ * TDS-008 §10.8 — four identifiers exist in this system and none of them
+ * are interchangeable:
+ *   - `eventId`   (below): one educational occurrence, generated once by
+ *     the publisher at event-creation time. Redelivering the same
+ *     occurrence reuses the same `eventId`; a new occurrence always gets a
+ *     new one. This is the sole identity a delivery/persistence layer may
+ *     use to recognise a duplicate.
+ *   - `sessionId`: one explanation-flow interaction (openFlow()..close()/
+ *     finish()) — shared by every event within that session, never a
+ *     per-event identity.
+ *   - the database row id (Stage 6.2, `learning_events.id`): assigned by
+ *     Postgres on insert, meaningful only to the persistence layer.
+ *   - `requestId` (`lib/observability/api.ts`): one HTTP execution,
+ *     operational/log-correlation only — it must never be treated as, or
+ *     substituted for, educational event identity (TDS-008 §10.3).
+ * `eventId` is generated with `crypto.randomUUID()` inside the publisher
+ * boundary itself (openFlow/viewStep/finish/close in
+ * question-explainer-flow.tsx) — never in an API route, a repository, or
+ * at database-insert time, since generating it downstream would turn a
+ * retried delivery of one occurrence into what looks like a second one.
  */
 interface LearningEventBase {
+  eventId: string;
   attemptId: string;
   sessionId: string;
   occurredAt: string;
