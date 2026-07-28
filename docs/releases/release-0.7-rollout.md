@@ -51,7 +51,7 @@ Both flags default to disabled/off if left unset — neither requires an explici
 
 Three independent categories — do not conflate them:
 
-- **Feature-flag rollback** (fastest, safest): unset `NEXT_PUBLIC_QUESTION_EXPLAINER_METRICS_ENABLED` (or `AI_QUESTION_EXPLAINER_ENABLED`) and redeploy. No data cleanup required — persisted rows remain historically accurate and don't need to be purged.
+- **Feature-flag rollback** (fastest, safest): unset the relevant flag. The two flags roll back differently, matching their type in the "Feature-flag states" table above — `AI_QUESTION_EXPLAINER_ENABLED` is a **server, runtime** flag, so unsetting it takes effect on the next request with no redeploy; `NEXT_PUBLIC_QUESTION_EXPLAINER_METRICS_ENABLED` is **client, build-time**, so unsetting it requires a rebuild/redeploy to take effect, same as enabling it did. No data cleanup required either way — persisted rows remain historically accurate and don't need to be purged.
 - **Code rollback**: redeploy the previous Vercel deployment (standard Vercel capability — not something this codebase implements). Safe for any application-code issue that isn't schema-related.
 - **Migration rollback**: **no automated mechanism exists.** `0008` (an earlier release) and `0013` are structurally irreversible without hand-writing a new corrective migration. If a migration-level issue is ever found, treat it as "write and apply a new forward migration," not "revert."
 
