@@ -17,6 +17,11 @@ import {
   type AiGenerationResponse,
 } from "@/modules/ai/gateway/ai-gateway";
 import { BudgetManager } from "@/modules/ai/shared/budget-manager";
+import {
+  ExplanationCacheDuplicateError,
+  type CachedExplanationEntry,
+  type ExplanationCacheRepository,
+} from "@/modules/question-explainer/explanation-cache.repository";
 
 function source(
   overrides: Partial<ExplanationSourceData> = {},
@@ -58,6 +63,20 @@ function buildFollowUpSelector(
     ...overrides,
   };
   return new FollowUpQuestionSelector(repository);
+}
+
+function buildCacheRepository(
+  overrides: Partial<ExplanationCacheRepository> = {},
+): ExplanationCacheRepository {
+  return {
+    find: vi.fn(async () => null),
+    save: vi.fn(async (params): Promise<CachedExplanationEntry> => ({
+      provider: params.provider,
+      model: params.model,
+      response: params.response,
+    })),
+    ...overrides,
+  };
 }
 
 const VALID_AI_JSON = JSON.stringify({
@@ -108,6 +127,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository({ getExplanationSource: vi.fn(async () => null) }),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       buildGateway(),
       buildBudgetManager(),
     );
@@ -128,6 +148,7 @@ describe("QuestionExplainerService.getExplanation", () => {
         getExplanationSource: vi.fn(async () => source({ isCorrect: true })),
       }),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -150,6 +171,7 @@ describe("QuestionExplainerService.getExplanation", () => {
         }),
       }),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       buildGateway(),
       buildBudgetManager(),
     );
@@ -163,10 +185,12 @@ describe("QuestionExplainerService.getExplanation", () => {
     ).rejects.toThrow(ExplainerAccessError);
   });
 
-  it("returns a fallback result when AI is disabled (null gateway)", async () => {
+  it("returns a fallback result when AI is disabled (null gateway), without consulting the cache", async () => {
+    const cacheRepository = buildCacheRepository();
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      cacheRepository,
       null,
       buildBudgetManager(),
     );
@@ -180,14 +204,50 @@ describe("QuestionExplainerService.getExplanation", () => {
     expect(result.eligible).toBe(true);
     if (!result.eligible) throw new Error("expected eligible");
     expect(result.source).toBe("fallback");
+    expect(result.cached).toBe(false);
     expect(result.explanation.keyConcept).toBe("75% is three quarters.");
+    expect(cacheRepository.find).not.toHaveBeenCalled();
   });
 
-  it("calls the gateway and returns a validated, grounded AI response", async () => {
+  it("returns a cached entry on a cache hit without calling the gateway", async () => {
+    const cachedResponse = JSON.parse(VALID_AI_JSON);
+    const cacheRepository = buildCacheRepository({
+      find: vi.fn(async () => ({
+        response: cachedResponse,
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+      })),
+    });
     const gateway = buildGateway();
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      cacheRepository,
+      gateway,
+      buildBudgetManager(),
+    );
+
+    const result = await service.getExplanation({
+      learnerId: "learner-1",
+      attemptId: "attempt-1",
+      audience: "learner",
+    });
+
+    expect(result.eligible).toBe(true);
+    if (!result.eligible) throw new Error("expected eligible");
+    expect(result.source).toBe("ai");
+    expect(result.cached).toBe(true);
+    expect(result.explanation.keyConcept).toBe("75% means three quarters.");
+    expect(gateway.generate).not.toHaveBeenCalled();
+  });
+
+  it("calls the gateway on a cache miss and persists an accepted AI response", async () => {
+    const cacheRepository = buildCacheRepository();
+    const gateway = buildGateway();
+    const service = new QuestionExplainerService(
+      buildRepository(),
+      buildFollowUpSelector(),
+      cacheRepository,
       gateway,
       buildBudgetManager(),
     );
@@ -199,10 +259,140 @@ describe("QuestionExplainerService.getExplanation", () => {
     });
 
     expect(gateway.generate).toHaveBeenCalledTimes(1);
+    expect(cacheRepository.save).toHaveBeenCalledTimes(1);
+    expect(cacheRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        learnerId: "learner-1",
+        attemptId: "attempt-1",
+        audience: "learner",
+        promptVersion: "v1",
+      }),
+    );
     expect(result.eligible).toBe(true);
     if (!result.eligible) throw new Error("expected eligible");
     expect(result.source).toBe("ai");
-    expect(result.explanation.keyConcept).toBe("75% means three quarters.");
+    expect(result.cached).toBe(false);
+  });
+
+  it("does not persist a fallback response", async () => {
+    const cacheRepository = buildCacheRepository();
+    const gateway = buildGateway({
+      generate: vi.fn(async () => {
+        throw new AiProviderTimeoutError("timed out");
+      }),
+    });
+    const service = new QuestionExplainerService(
+      buildRepository(),
+      buildFollowUpSelector(),
+      cacheRepository,
+      gateway,
+      buildBudgetManager(),
+    );
+
+    const result = await service.getExplanation({
+      learnerId: "learner-1",
+      attemptId: "attempt-1",
+      audience: "learner",
+    });
+
+    expect(result.eligible).toBe(true);
+    if (!result.eligible) throw new Error("expected eligible");
+    expect(result.source).toBe("fallback");
+    expect(cacheRepository.save).not.toHaveBeenCalled();
+  });
+
+  it("reuses the concurrent winner's row when save() reports a duplicate", async () => {
+    const winningResponse = JSON.parse(VALID_AI_JSON);
+    winningResponse.acknowledgement = "Winner acknowledgement";
+    const cacheRepository = buildCacheRepository({
+      save: vi.fn(async () => {
+        throw new ExplanationCacheDuplicateError("conflict");
+      }),
+    });
+    let callCount = 0;
+    cacheRepository.find = vi.fn(async () => {
+      callCount += 1;
+      return callCount === 1
+        ? null
+        : {
+            response: winningResponse,
+            provider: "gemini",
+            model: "gemini-2.5-flash",
+          };
+    });
+
+    const gateway = buildGateway();
+    const service = new QuestionExplainerService(
+      buildRepository(),
+      buildFollowUpSelector(),
+      cacheRepository,
+      gateway,
+      buildBudgetManager(),
+    );
+
+    const result = await service.getExplanation({
+      learnerId: "learner-1",
+      attemptId: "attempt-1",
+      audience: "learner",
+    });
+
+    expect(result.eligible).toBe(true);
+    if (!result.eligible) throw new Error("expected eligible");
+    expect(result.explanation.acknowledgement).toBe("Winner acknowledgement");
+    expect(result.source).toBe("ai");
+  });
+
+  it("falls back when a duplicate save can't be resolved to an existing row", async () => {
+    const cacheRepository = buildCacheRepository({
+      save: vi.fn(async () => {
+        throw new ExplanationCacheDuplicateError("conflict");
+      }),
+      find: vi.fn(async () => null),
+    });
+    const gateway = buildGateway();
+    const service = new QuestionExplainerService(
+      buildRepository(),
+      buildFollowUpSelector(),
+      cacheRepository,
+      gateway,
+      buildBudgetManager(),
+    );
+
+    const result = await service.getExplanation({
+      learnerId: "learner-1",
+      attemptId: "attempt-1",
+      audience: "learner",
+    });
+
+    expect(result.eligible).toBe(true);
+    if (!result.eligible) throw new Error("expected eligible");
+    expect(result.source).toBe("fallback");
+  });
+
+  it("falls back when save() fails for a reason other than a duplicate", async () => {
+    const cacheRepository = buildCacheRepository({
+      save: vi.fn(async () => {
+        throw new Error("connection reset");
+      }),
+    });
+    const gateway = buildGateway();
+    const service = new QuestionExplainerService(
+      buildRepository(),
+      buildFollowUpSelector(),
+      cacheRepository,
+      gateway,
+      buildBudgetManager(),
+    );
+
+    const result = await service.getExplanation({
+      learnerId: "learner-1",
+      attemptId: "attempt-1",
+      audience: "learner",
+    });
+
+    expect(result.eligible).toBe(true);
+    if (!result.eligible) throw new Error("expected eligible");
+    expect(result.source).toBe("fallback");
   });
 
   it("uses the learner prompt for audience: 'learner' and the parent prompt for audience: 'parent'", async () => {
@@ -210,6 +400,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -239,6 +430,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       budgetManager,
     );
@@ -270,6 +462,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(), // no candidates -> no follow-up available
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -310,6 +503,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -334,6 +528,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -358,6 +553,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -382,6 +578,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -408,6 +605,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       exhaustedBudgetManager,
     );
@@ -430,6 +628,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository(),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       buildGateway(),
       budgetManager,
     );
@@ -450,6 +649,7 @@ describe("QuestionExplainerService.getExplanation", () => {
     const service = new QuestionExplainerService(
       buildRepository({ getLearnerDisplayName: vi.fn(async () => "") }),
       buildFollowUpSelector(),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -484,6 +684,7 @@ describe("QuestionExplainerService.getExplanation", () => {
           { questionId: "question-2", difficulty: 2 },
         ]),
       }),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -500,6 +701,41 @@ describe("QuestionExplainerService.getExplanation", () => {
     expect(result.followUpQuestionId).toBe("question-2");
   });
 
+  it("attaches a freshly resolved followUpQuestionId to a cached response too", async () => {
+    const cachedResponse = JSON.parse(VALID_AI_JSON_WITH_LINKED_QUESTION);
+    const cacheRepository = buildCacheRepository({
+      find: vi.fn(async () => ({
+        response: cachedResponse,
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+      })),
+    });
+    const service = new QuestionExplainerService(
+      buildRepository({
+        getQuestionPromptById: vi.fn(async () => "Find 75% of 40."),
+      }),
+      buildFollowUpSelector({
+        loadEligibleCandidates: vi.fn(async () => [
+          { questionId: "question-3", difficulty: 2 },
+        ]),
+      }),
+      cacheRepository,
+      buildGateway(),
+      buildBudgetManager(),
+    );
+
+    const result = await service.getExplanation({
+      learnerId: "learner-1",
+      attemptId: "attempt-1",
+      audience: "learner",
+    });
+
+    expect(result.eligible).toBe(true);
+    if (!result.eligible) throw new Error("expected eligible");
+    expect(result.cached).toBe(true);
+    expect(result.followUpQuestionId).toBe("question-3");
+  });
+
   it("does not attach a followUpQuestionId when the response's next action is review-skill, even if a follow-up was available", async () => {
     const gateway = buildGateway(); // VALID_AI_JSON -> review-skill
     const service = new QuestionExplainerService(
@@ -511,6 +747,7 @@ describe("QuestionExplainerService.getExplanation", () => {
           { questionId: "question-2", difficulty: 2 },
         ]),
       }),
+      buildCacheRepository(),
       gateway,
       buildBudgetManager(),
     );
@@ -533,6 +770,7 @@ describe("QuestionExplainerService.getExplanation", () => {
         getExplanationSource: vi.fn(async () => source({ difficulty: 3 })),
       }),
       buildFollowUpSelector({ loadEligibleCandidates }),
+      buildCacheRepository(),
       buildGateway(),
       buildBudgetManager(),
     );
