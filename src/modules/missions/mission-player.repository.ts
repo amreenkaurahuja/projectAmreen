@@ -30,6 +30,7 @@ export interface MissionItemRecord {
     sortOrder: number;
   }>;
   attempt: {
+    attemptId: string;
     selectedOptionId: string;
     isCorrect: boolean;
     responseMs: number;
@@ -93,6 +94,7 @@ interface RawQuestionRow {
 }
 
 interface RawAttemptRow {
+  id: string;
   selected_option_id: string;
   is_correct: boolean;
   response_ms: number;
@@ -216,7 +218,9 @@ export class SupabaseMissionPlayerRepository implements MissionPlayerRepository 
         ? { data: [] as RawAttemptWithItemRow[], error: null }
         : await this.supabase
             .from("question_attempts")
-            .select("mission_item_id,selected_option_id,is_correct,response_ms")
+            .select(
+              "id,mission_item_id,selected_option_id,is_correct,response_ms",
+            )
             .in("mission_item_id", itemIds);
 
     if (attemptsError) {
@@ -255,6 +259,7 @@ export class SupabaseMissionPlayerRepository implements MissionPlayerRepository 
           })),
         attempt: attempt
           ? {
+              attemptId: attempt.id,
               selectedOptionId: attempt.selected_option_id,
               isCorrect: attempt.is_correct,
               responseMs: attempt.response_ms,

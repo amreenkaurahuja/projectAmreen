@@ -68,6 +68,7 @@ describe("computeTotalResponseMs", () => {
       buildQuestion({
         missionItemId: "item-1",
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "b",
           correctOptionId: "b",
           isCorrect: true,
@@ -79,6 +80,7 @@ describe("computeTotalResponseMs", () => {
       buildQuestion({
         missionItemId: "item-3",
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "a",
           correctOptionId: "b",
           isCorrect: false,
@@ -125,6 +127,7 @@ describe("computeSubjectBreakdown", () => {
         subjectName: "Mathematics",
         subjectSlug: "mathematics",
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "b",
           correctOptionId: "b",
           isCorrect: true,
@@ -137,6 +140,7 @@ describe("computeSubjectBreakdown", () => {
         subjectName: "Mathematics",
         subjectSlug: "mathematics",
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "a",
           correctOptionId: "b",
           isCorrect: false,
@@ -174,6 +178,7 @@ describe("buildCompletionSummary", () => {
         subjectName: index < 8 ? "Mathematics" : "English",
         subjectSlug: index < 8 ? "mathematics" : "english",
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "b",
           correctOptionId: "b",
           isCorrect: index < 15,
@@ -201,6 +206,7 @@ describe("buildCompletionSummary", () => {
     const questions = [
       buildQuestion({
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "b",
           correctOptionId: "b",
           isCorrect: true,
@@ -229,6 +235,7 @@ describe("buildReview", () => {
           { id: "b", label: "4" },
         ],
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "a",
           correctOptionId: "b",
           isCorrect: false,
@@ -239,6 +246,7 @@ describe("buildReview", () => {
       buildQuestion({
         missionItemId: "item-2",
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "b",
           correctOptionId: "b",
           isCorrect: true,
@@ -254,6 +262,7 @@ describe("buildReview", () => {
     expect(review.mistakes).toHaveLength(1);
     expect(review.mistakes[0]).toEqual({
       missionItemId: "item-1",
+      attemptId: "attempt-1",
       subjectName: "Mathematics",
       subjectSlug: "mathematics",
       topicName: null,
@@ -270,6 +279,7 @@ describe("buildReview", () => {
       buildQuestion({
         missionItemId: "item-1",
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "b",
           correctOptionId: "b",
           isCorrect: true,

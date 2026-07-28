@@ -42,6 +42,7 @@ function buildItems(answeredPositions: number[]): MissionItemRecord[] {
       ],
       attempt: answered
         ? {
+            attemptId: "attempt-1",
             selectedOptionId: `${position}-a`,
             isCorrect: true,
             responseMs: 1000,

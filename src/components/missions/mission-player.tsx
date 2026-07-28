@@ -51,6 +51,7 @@ export function MissionPlayer({
           ? {
               ...item,
               attempt: {
+                attemptId: answer.attemptId,
                 selectedOptionId,
                 correctOptionId: answer.correctOptionId,
                 isCorrect: answer.isCorrect,

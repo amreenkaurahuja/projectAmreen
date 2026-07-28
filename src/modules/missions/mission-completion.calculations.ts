@@ -116,6 +116,7 @@ export function buildReview(
 
       return {
         missionItemId: item.missionItemId,
+        attemptId: attempt.attemptId,
         subjectName: item.subjectName,
         subjectSlug: item.subjectSlug,
         topicName: item.topicName,

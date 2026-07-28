@@ -122,7 +122,12 @@ describe("MissionPlayerService.getMissionForPlayer", () => {
           { id: "a", label: "3", isCorrect: false, sortOrder: 1 },
           { id: "b", label: "4", isCorrect: true, sortOrder: 2 },
         ],
-        attempt: { selectedOptionId: "a", isCorrect: false, responseMs: 1500 },
+        attempt: {
+          attemptId: "attempt-1",
+          selectedOptionId: "a",
+          isCorrect: false,
+          responseMs: 1500,
+        },
       },
     ];
     const repository = buildRepository({
@@ -136,6 +141,7 @@ describe("MissionPlayerService.getMissionForPlayer", () => {
     expect(mission.answeredCount).toBe(1);
     expect(mission.correctCount).toBe(0);
     expect(mission.questions[0].attempt).toEqual({
+      attemptId: "attempt-1",
       selectedOptionId: "a",
       correctOptionId: "b",
       isCorrect: false,

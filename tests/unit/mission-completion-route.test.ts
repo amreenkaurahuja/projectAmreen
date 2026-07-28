@@ -78,6 +78,7 @@ function buildMission(): MissionPlayer {
           { id: "b", label: "4" },
         ],
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "a",
           correctOptionId: "b",
           isCorrect: false,
@@ -98,6 +99,7 @@ function buildMission(): MissionPlayer {
           { id: "d", label: "Sad" },
         ],
         attempt: {
+          attemptId: "attempt-1",
           selectedOptionId: "c",
           correctOptionId: "c",
           isCorrect: true,
@@ -260,6 +262,7 @@ describe("GET /api/missions/[missionId]/review", () => {
     mockLearnerName();
     const mission = buildMission();
     mission.questions[0]!.attempt = {
+      attemptId: "attempt-1",
       selectedOptionId: "b",
       correctOptionId: "b",
       isCorrect: true,

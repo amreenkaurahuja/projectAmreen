@@ -69,6 +69,7 @@ export class MissionPlayerService {
         })),
         attempt: item.attempt
           ? {
+              attemptId: item.attempt.attemptId,
               selectedOptionId: item.attempt.selectedOptionId,
               correctOptionId: correctOption?.id ?? "",
               isCorrect: item.attempt.isCorrect,
@@ -192,6 +193,7 @@ export class MissionPlayerService {
 
     return {
       missionItemId: item.missionItemId,
+      attemptId,
       isCorrect: option.isCorrect,
       correctOptionId,
       explanation: item.explanation,
