@@ -51,6 +51,7 @@ function buildRepository(
     getLearnerDisplayName: vi.fn(async () => "Amelia"),
     getExplanationSource: vi.fn(async () => source()),
     getQuestionPromptById: vi.fn(async () => null),
+    getLearnerIdForAttempt: vi.fn(async () => "learner-1"),
     ...overrides,
   };
 }
