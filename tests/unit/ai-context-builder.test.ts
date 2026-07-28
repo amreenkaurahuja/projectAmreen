@@ -149,7 +149,12 @@ function buildMissionItems(): MissionItemRecord[] {
         { id: "a", label: "3", isCorrect: false, sortOrder: 1 },
         { id: "b", label: "4", isCorrect: true, sortOrder: 2 },
       ],
-      attempt: { selectedOptionId: "b", isCorrect: true, responseMs: 60_000 },
+      attempt: {
+        attemptId: "attempt-1",
+        selectedOptionId: "b",
+        isCorrect: true,
+        responseMs: 60_000,
+      },
     },
     {
       missionItemId: "item-2",
@@ -164,7 +169,12 @@ function buildMissionItems(): MissionItemRecord[] {
         { id: "c", label: "Joyful", isCorrect: true, sortOrder: 1 },
         { id: "d", label: "Sad", isCorrect: false, sortOrder: 2 },
       ],
-      attempt: { selectedOptionId: "d", isCorrect: false, responseMs: 60_000 },
+      attempt: {
+        attemptId: "attempt-1",
+        selectedOptionId: "d",
+        isCorrect: false,
+        responseMs: 60_000,
+      },
     },
   ];
 }

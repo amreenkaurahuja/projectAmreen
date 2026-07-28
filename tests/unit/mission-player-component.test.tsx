@@ -26,6 +26,7 @@ function buildMission(answeredPositions: number[]): MissionPlayerData {
       ],
       attempt: answered
         ? {
+            attemptId: "attempt-1",
             selectedOptionId: `${position}-a`,
             correctOptionId: `${position}-a`,
             isCorrect: true,

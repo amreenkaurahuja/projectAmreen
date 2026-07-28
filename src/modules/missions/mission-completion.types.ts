@@ -27,6 +27,7 @@ export interface MissionCompletionSummary {
 
 export interface MissionReviewItem {
   missionItemId: string;
+  attemptId: string;
   subjectName: string;
   subjectSlug: string;
   topicName: string | null;

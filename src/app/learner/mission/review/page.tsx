@@ -13,6 +13,7 @@ import { MissionPlayerService } from "@/modules/missions/mission-player.service"
 import { SupabaseMissionCompletionRepository } from "@/modules/missions/mission-completion.repository";
 import { MissionCompletionService } from "@/modules/missions/mission-completion.service";
 import type { MissionReview } from "@/modules/missions/mission-completion.types";
+import { QuestionExplainerFlow } from "@/components/question-explainer/question-explainer-flow";
 
 const paramsSchema = z.object({
   learner: z.string().uuid(),
@@ -121,6 +122,11 @@ export default async function MissionReviewPage({
                     {mistake.explanation}
                   </p>
                 )}
+                <QuestionExplainerFlow
+                  attemptId={mistake.attemptId}
+                  selectedOptionLabel={mistake.selectedOptionLabel}
+                  correctOptionLabel={mistake.correctOptionLabel}
+                />
               </li>
             ))}
           </ul>

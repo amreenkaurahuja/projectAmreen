@@ -6,6 +6,7 @@ export interface MissionPlayerOption {
 }
 
 export interface MissionPlayerAttempt {
+  attemptId: string;
   selectedOptionId: string;
   correctOptionId: string;
   isCorrect: boolean;
@@ -48,6 +49,7 @@ export interface MissionSummaryStats {
 
 export interface SubmitAnswerResult {
   missionItemId: string;
+  attemptId: string;
   isCorrect: boolean;
   correctOptionId: string;
   explanation: string;

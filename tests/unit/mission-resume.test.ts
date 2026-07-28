@@ -15,6 +15,7 @@ function buildMission(answeredCount: number): MissionPlayer {
     attempt:
       index < answeredCount
         ? {
+            attemptId: "attempt-1",
             selectedOptionId: `option-${index}`,
             correctOptionId: `option-${index}`,
             isCorrect: true,

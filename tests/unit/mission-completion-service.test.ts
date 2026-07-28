@@ -34,7 +34,12 @@ function buildItems(): MissionItemRecord[] {
         { id: "a", label: "3", isCorrect: false, sortOrder: 1 },
         { id: "b", label: "4", isCorrect: true, sortOrder: 2 },
       ],
-      attempt: { selectedOptionId: "a", isCorrect: false, responseMs: 1000 },
+      attempt: {
+        attemptId: "attempt-1",
+        selectedOptionId: "a",
+        isCorrect: false,
+        responseMs: 1000,
+      },
     },
     {
       missionItemId: "item-2",
@@ -49,7 +54,12 @@ function buildItems(): MissionItemRecord[] {
         { id: "c", label: "Joyful", isCorrect: true, sortOrder: 1 },
         { id: "d", label: "Sad", isCorrect: false, sortOrder: 2 },
       ],
-      attempt: { selectedOptionId: "c", isCorrect: true, responseMs: 900 },
+      attempt: {
+        attemptId: "attempt-1",
+        selectedOptionId: "c",
+        isCorrect: true,
+        responseMs: 900,
+      },
     },
   ];
 }
@@ -192,6 +202,7 @@ describe("MissionCompletionService.getReview", () => {
         : null,
     }));
     allCorrect[0]!.attempt = {
+      attemptId: "attempt-1",
       selectedOptionId: "b",
       isCorrect: true,
       responseMs: 1000,
