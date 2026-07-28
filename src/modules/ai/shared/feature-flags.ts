@@ -32,3 +32,24 @@ export function isCoachEnabledForAudience(
     audience === "learner" ? env.AI_LEARNER_ENABLED : env.AI_PARENT_ENABLED;
   return audienceFlag === "true";
 }
+
+/**
+ * The Question Explainer's own switch (AI_QUESTION_EXPLAINER_ENABLED),
+ * layered on the same shared AI_LEARNER_ENABLED/AI_PARENT_ENABLED audience
+ * flags the Coach uses (TDS-007 §6's "one capability flag plus the existing
+ * audience flags" option) rather than a second, duplicate pair — an
+ * audience being enabled means enabled for every AI feature that audience
+ * has, not per-feature.
+ */
+export function isQuestionExplainerEnabledForAudience(
+  audience: Audience,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  if (env.AI_QUESTION_EXPLAINER_ENABLED !== "true") {
+    return false;
+  }
+
+  const audienceFlag =
+    audience === "learner" ? env.AI_LEARNER_ENABLED : env.AI_PARENT_ENABLED;
+  return audienceFlag === "true";
+}

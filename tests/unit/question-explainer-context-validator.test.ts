@@ -6,7 +6,8 @@ function context(
   overrides: Partial<QuestionExplanationContext> = {},
 ): QuestionExplanationContext {
   return {
-    schemaVersion: "question-explanation-context-v1",
+    schemaVersion: "question-explanation-context-v2",
+    promptVersion: "v1",
     audience: "learner",
     learnerDisplayName: "Amelia",
     subject: "Mathematics",
@@ -15,13 +16,24 @@ function context(
     learnerAnswerLabel: "54",
     correctAnswerLabel: "60",
     authoredExplanation: "75% is three quarters.",
+    followUpAvailable: false,
     ...overrides,
   };
 }
 
 describe("validateQuestionExplanationContext", () => {
-  it("accepts a well-formed context", () => {
+  it("accepts a well-formed context with no follow-up", () => {
     const result = validateQuestionExplanationContext(context());
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a well-formed context with a follow-up", () => {
+    const result = validateQuestionExplanationContext(
+      context({
+        followUpAvailable: true,
+        followUpQuestionPrompt: "Find 75% of 40.",
+      }),
+    );
     expect(result.success).toBe(true);
   });
 
@@ -30,6 +42,15 @@ describe("validateQuestionExplanationContext", () => {
       context({ authoredExplanation: "" }),
     );
     expect(result.success).toBe(true);
+  });
+
+  it("rejects followUpQuestionPrompt present when followUpAvailable is false", () => {
+    const result = validateQuestionExplanationContext({
+      ...context(),
+      followUpAvailable: false,
+      followUpQuestionPrompt: "Find 75% of 40.",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rejects an empty learnerDisplayName", () => {
@@ -50,7 +71,15 @@ describe("validateQuestionExplanationContext", () => {
   it("rejects a mismatched schemaVersion", () => {
     const result = validateQuestionExplanationContext({
       ...context(),
-      schemaVersion: "question-explanation-context-v2",
+      schemaVersion: "question-explanation-context-v1",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty promptVersion", () => {
+    const result = validateQuestionExplanationContext({
+      ...context(),
+      promptVersion: "",
     });
     expect(result.success).toBe(false);
   });

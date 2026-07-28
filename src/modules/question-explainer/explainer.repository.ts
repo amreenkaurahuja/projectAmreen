@@ -27,6 +27,8 @@ export interface QuestionExplainerRepository {
     learnerId: string;
     attemptId: string;
   }): Promise<ExplanationSourceData | null>;
+  /** Used only to look up a deterministically-selected follow-up question's prompt text for the context (PS-007 §4) — never its id, and never used to grade or select it. Active-question scoping is already guaranteed by FollowUpQuestionSelector; this is a plain lookup, not an eligibility check. */
+  getQuestionPromptById(questionId: string): Promise<string | null>;
 }
 
 interface RawOptionRow {
@@ -165,5 +167,20 @@ export class SupabaseQuestionExplainerRepository implements QuestionExplainerRep
       correctAnswerLabel: correctOption?.label ?? "",
       authoredExplanation: question.explanation,
     };
+  }
+
+  async getQuestionPromptById(questionId: string): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from("question_bank")
+      .select("prompt")
+      .eq("id", questionId)
+      .maybeSingle();
+
+    if (error) {
+      throw new ExplainerRepositoryError(
+        `Unable to load follow-up question: ${error.message}`,
+      );
+    }
+    return data?.prompt ?? null;
   }
 }

@@ -9,7 +9,8 @@ function context(
   overrides: Partial<QuestionExplanationContext> = {},
 ): QuestionExplanationContext {
   return {
-    schemaVersion: "question-explanation-context-v1",
+    schemaVersion: "question-explanation-context-v2",
+    promptVersion: "v1",
     audience: "learner",
     learnerDisplayName: "Amelia",
     subject: "Mathematics",
@@ -18,6 +19,7 @@ function context(
     learnerAnswerLabel: "54",
     correctAnswerLabel: "60",
     authoredExplanation: "75% is three quarters.",
+    followUpAvailable: false,
     ...overrides,
   };
 }
@@ -36,6 +38,16 @@ describe("computeExplanationContextHash", () => {
     );
     const hashB = computeExplanationContextHash(
       context({ learnerAnswerLabel: "56" }),
+    );
+    expect(hashA).not.toBe(hashB);
+  });
+
+  it("changes when the prompt version changes (PS-007 §11 cache invalidation)", () => {
+    const hashA = computeExplanationContextHash(
+      context({ promptVersion: "v1" }),
+    );
+    const hashB = computeExplanationContextHash(
+      context({ promptVersion: "v2" }),
     );
     expect(hashA).not.toBe(hashB);
   });
