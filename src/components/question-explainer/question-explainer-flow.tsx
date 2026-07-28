@@ -1,6 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import type {
+  ExplanationExitMethod,
+  ExplanationStep,
+} from "@/modules/question-explainer/explanation-event.types";
+import {
+  noOpLearningEventPublisher,
+  type LearningEventPublisher,
+} from "@/modules/question-explainer/explanation-event-publisher";
 
 // The public /api/v1/question-explanations response contract (see
 // src/app/api/v1/question-explanations/route.ts) — duplicated here rather
@@ -51,6 +59,15 @@ const FOCUS_RING =
 const PRIMARY_BUTTON_CLASS = `mt-6 w-full rounded-xl bg-neutral-950 px-6 py-3 font-semibold text-white ${FOCUS_RING}`;
 const SECONDARY_BUTTON_CLASS = `rounded-full border px-3 py-1 text-xs font-medium hover:bg-neutral-50 ${FOCUS_RING}`;
 
+// TDS-008 §6 — the component's own state names stay implementation detail;
+// this is the one place they're mapped onto the public event vocabulary.
+const STEP_EVENT_NAME: Record<Screen, ExplanationStep> = {
+  acknowledge: "acknowledge",
+  explain: "explain",
+  example: "worked_example",
+  next: "next_step",
+};
+
 /**
  * LDS-001's four-screen progressive learning flow: acknowledge the mistake
  * (already-known data, instant) -> explain the key concept (fetched) ->
@@ -65,15 +82,23 @@ const SECONDARY_BUTTON_CLASS = `rounded-full border px-3 py-1 text-xs font-mediu
  * text field naming the same thing again would be exactly the "explanation
  * + worked example + encouragement all fighting for attention" LDS-001
  * argues against.
+ *
+ * TDS-008 Stage 6.1: publishes educational-milestone events through
+ * `publisher` (default: a no-op — see explanation-event-publisher.ts).
+ * Every `publisher.publish(...)` call below is fire-and-forget and never
+ * gates or delays a state transition; the four-screen flow above behaves
+ * identically whether a real publisher is wired in or not (AP-1).
  */
 export function QuestionExplainerFlow({
   attemptId,
   selectedOptionLabel,
   correctOptionLabel,
+  publisher = noOpLearningEventPublisher,
 }: {
   attemptId: string;
   selectedOptionLabel: string;
   correctOptionLabel: string;
+  publisher?: LearningEventPublisher;
 }) {
   const [open, setOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>("acknowledge");
@@ -91,21 +116,89 @@ export function QuestionExplainerFlow({
   const contentRef = useRef<HTMLDivElement>(null);
   const headingId = useId();
 
-  const close = useCallback(() => {
+  // TDS-008 §5/§10: one mounted flow instance = one metrics session, whose
+  // lifetime exactly matches openFlow()..close()/finish() — refs, not
+  // state, since none of these should ever trigger a re-render on their
+  // own and every one of them must read as "current" from inside a
+  // useEffect cleanup (unmount) without going stale.
+  const sessionIdRef = useRef("");
+  const openedAtRef = useRef(0);
+  const sessionCompletedRef = useRef(false);
+  const lastStepRef = useRef<ExplanationStep>("acknowledge");
+  const isOpenRef = useRef(false);
+
+  function resetDialogState() {
     setOpen(false);
+    isOpenRef.current = false;
     setScreen("acknowledge");
     setFetchState(null);
     triggerRef.current?.focus();
-  }, []);
+  }
+
+  const close = useCallback(
+    (exitMethod: ExplanationExitMethod) => {
+      if (!sessionCompletedRef.current) {
+        publisher.publish({
+          eventType: "explanation_abandoned",
+          attemptId,
+          sessionId: sessionIdRef.current,
+          lastStep: lastStepRef.current,
+          exitMethod,
+          durationMs: Date.now() - openedAtRef.current,
+          occurredAt: new Date().toISOString(),
+        });
+      }
+      resetDialogState();
+    },
+    [attemptId, publisher],
+  );
 
   function openFlow() {
+    sessionIdRef.current = crypto.randomUUID();
+    openedAtRef.current = Date.now();
+    sessionCompletedRef.current = false;
+    lastStepRef.current = "acknowledge";
+    isOpenRef.current = true;
     setOpen(true);
     setScreen("acknowledge");
+
+    publisher.publish({
+      eventType: "explanation_opened",
+      attemptId,
+      sessionId: sessionIdRef.current,
+      occurredAt: new Date().toISOString(),
+    });
+    publisher.publish({
+      eventType: "step_viewed",
+      attemptId,
+      sessionId: sessionIdRef.current,
+      step: "acknowledge",
+      occurredAt: new Date().toISOString(),
+    });
   }
 
   function finish() {
+    sessionCompletedRef.current = true;
+    publisher.publish({
+      eventType: "explanation_completed",
+      attemptId,
+      sessionId: sessionIdRef.current,
+      durationMs: Date.now() - openedAtRef.current,
+      occurredAt: new Date().toISOString(),
+    });
     setCompleted(true);
-    close();
+    resetDialogState();
+  }
+
+  function viewStep(screenName: Screen) {
+    lastStepRef.current = STEP_EVENT_NAME[screenName];
+    publisher.publish({
+      eventType: "step_viewed",
+      attemptId,
+      sessionId: sessionIdRef.current,
+      step: STEP_EVENT_NAME[screenName],
+      occurredAt: new Date().toISOString(),
+    });
   }
 
   async function requestExplanation() {
@@ -122,6 +215,9 @@ export function QuestionExplainerFlow({
       }
       const result = (await response.json()) as ExplanationApiResult;
       setFetchState({ status: "loaded", result });
+      // "explain" is only genuinely viewed once there's something to read —
+      // not the moment the loading skeleton appears (LDS-002 §5.2).
+      viewStep("explain");
     } catch {
       setFetchState({ status: "error" });
     }
@@ -137,7 +233,7 @@ export function QuestionExplainerFlow({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        close();
+        close("escape");
         return;
       }
       if (event.key !== "Tab") return;
@@ -171,6 +267,32 @@ export function QuestionExplainerFlow({
     if (open) contentRef.current?.focus();
   }, [open, screen, fetchState?.status]);
 
+  // TDS-008 §5.4 exitMethod "unmount": the learner navigates away (e.g. the
+  // review page's dashboard link) while the flow is still open. Reads refs
+  // only, deliberately — a stale closure here is fine because every value
+  // read is a ref, never state, so this always sees the latest values at
+  // the moment the component actually unmounts, regardless of when this
+  // effect itself last ran. "navigation" (a full browser-level unload) is
+  // out of scope for Stage 6.1 — it needs navigator.sendBeacon, which is a
+  // delivery-mechanism decision that belongs to Stage 6.3, not the
+  // publisher boundary.
+  useEffect(() => {
+    return () => {
+      if (isOpenRef.current && !sessionCompletedRef.current) {
+        publisher.publish({
+          eventType: "explanation_abandoned",
+          attemptId,
+          sessionId: sessionIdRef.current,
+          lastStep: lastStepRef.current,
+          exitMethod: "unmount",
+          durationMs: Date.now() - openedAtRef.current,
+          occurredAt: new Date().toISOString(),
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -194,7 +316,7 @@ export function QuestionExplainerFlow({
         // from bubbling, so clicking inside never closes it.
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4"
-          onClick={close}
+          onClick={() => close("backdrop")}
         >
           <div
             ref={dialogRef}
@@ -215,7 +337,7 @@ export function QuestionExplainerFlow({
               </button>
               <button
                 type="button"
-                onClick={close}
+                onClick={() => close("close_button")}
                 aria-label="Close explanation"
                 className={SECONDARY_BUTTON_CLASS}
               >
@@ -276,7 +398,7 @@ export function QuestionExplainerFlow({
                       </p>
                       <button
                         type="button"
-                        onClick={close}
+                        onClick={() => close("error")}
                         className={`mt-6 rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-neutral-50 ${FOCUS_RING}`}
                       >
                         Close
@@ -296,7 +418,10 @@ export function QuestionExplainerFlow({
                       </p>
                       <button
                         type="button"
-                        onClick={() => setScreen("example")}
+                        onClick={() => {
+                          viewStep("example");
+                          setScreen("example");
+                        }}
                         className={PRIMARY_BUTTON_CLASS}
                       >
                         Let&apos;s see one
@@ -336,7 +461,10 @@ export function QuestionExplainerFlow({
                   </p>
                   <button
                     type="button"
-                    onClick={() => setScreen("next")}
+                    onClick={() => {
+                      viewStep("next");
+                      setScreen("next");
+                    }}
                     className={PRIMARY_BUTTON_CLASS}
                   >
                     Now you try
