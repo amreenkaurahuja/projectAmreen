@@ -97,7 +97,7 @@ The pool of exam-style questions missions are generated from.
 `skill_id` was originally nullable and never set by the seed script — the app inferred a skill from the question's topic instead, which only works while every topic has exactly one active skill. Migration `0008_backfill_question_skill.sql` backfilled every existing row from its topic's (then-unambiguous) skill and made the column `not null`, and `scripts/seedQuestions.ts` / `data/questions.json` now always supply it directly (a `skillCode` matching `skills.code`, e.g. `MATH-ARI-01`). See `docs/Architecture.md` → "Learning profile & mastery" for why this mattered.
 
 Index: `question_bank_subject_idx` on `(subject_id) where is_active`.
-RLS: any authenticated user may read active questions / options for active questions. Seeded separately via `npm run seed:questions` (`scripts/seedQuestions.ts`), not by a migration.
+RLS: any authenticated user may read active questions / options for active questions. Seeded separately via `npx tsx scripts/seedQuestions.ts`, not by a migration (there is no `npm run seed:questions` script — run the file directly).
 
 ### `missions` (0004; `generation_strategy`/`generation_metadata` added in 0009)
 
@@ -270,5 +270,5 @@ As of Phase 4 (mission completion, review, summary), **no new migration was need
 ## Seed data
 
 - Curriculum catalogue (subjects/topics/skills/objectives): part of `0003_phase2_curriculum.sql` itself.
-- Question bank content: `npm run seed:questions` → `scripts/seedQuestions.ts`, authenticated with `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS to bulk-insert). This is the **only** other place in the whole codebase that uses the service-role key besides the mastery backfill script below — the running Next.js app never does. See `docs/ENVIRONMENTS.md`.
+- Question bank content: `npx tsx scripts/seedQuestions.ts` (no `npm run` wrapper exists for this one — unlike `backfill:learning-mastery` below), authenticated with `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS to bulk-insert). This is the **only** other place in the whole codebase that uses the service-role key besides the mastery backfill script below — the running Next.js app never does. See `docs/ENVIRONMENTS.md`.
 - Mastery backfill for pre-existing answered questions: `npm run backfill:learning-mastery` → `scripts/backfill-learning-mastery.ts`. One-off/offline administrative script, also authenticated with `SUPABASE_SERVICE_ROLE_KEY`; see `docs/Architecture.md` → "Learning profile & mastery" → "Backfill" for what it does and why it's safe to re-run.
