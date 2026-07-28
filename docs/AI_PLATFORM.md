@@ -2,6 +2,8 @@
 
 The AI Learning Coach is the first feature built on Project Amreen's AI Platform (`src/modules/ai/`) — a reusable, provider-agnostic foundation intended to carry every future AI feature (a tutor, a study planner, a question explainer, teacher reports, …) without rebuilding prompt/validation/caching/provider plumbing each time. See `docs/AI_CONSTITUTION.md` for the twelve non-negotiable rules every such feature must follow, and `docs/Architecture.md` → "AI Platform (Phase 5.4)" for how this fits into the rest of the app.
 
+The Question Explainer (Release 0.7, `src/modules/question-explainer/`) was the first capability built _on top of_ this platform rather than _as_ it — see `docs/ARS-001-release-0.7-retrospective.md` for the architectural patterns that release established as the default baseline for every capability after it.
+
 ## Architecture
 
 ```
