@@ -5,10 +5,8 @@ import type {
   ExplanationExitMethod,
   ExplanationStep,
 } from "@/modules/question-explainer/explanation-event.types";
-import {
-  noOpLearningEventPublisher,
-  type LearningEventPublisher,
-} from "@/modules/question-explainer/explanation-event-publisher";
+import type { LearningEventPublisher } from "@/modules/question-explainer/explanation-event-publisher";
+import { defaultLearningEventPublisher } from "@/modules/question-explainer/default-learning-event-publisher";
 
 // The public /api/v1/question-explanations response contract (see
 // src/app/api/v1/question-explanations/route.ts) — duplicated here rather
@@ -92,12 +90,18 @@ const STEP_EVENT_NAME: Record<Screen, ExplanationStep> = {
  * TDS-008 Stage 6.3A: each event gets its own `eventId` via
  * `crypto.randomUUID()` at the exact point it's constructed below — this
  * is the one and only place an event's identity is ever assigned (§10.8).
+ *
+ * TDS-008 Stage 6.3C: `publisher` defaults to
+ * `defaultLearningEventPublisher` — the no-op or the real HTTP publisher,
+ * chosen by `isQuestionExplainerMetricsEnabled()` — rather than always
+ * the no-op. An explicitly supplied `publisher` (every existing test)
+ * still always wins; this only changes what an *unwired* caller gets.
  */
 export function QuestionExplainerFlow({
   attemptId,
   selectedOptionLabel,
   correctOptionLabel,
-  publisher = noOpLearningEventPublisher,
+  publisher = defaultLearningEventPublisher,
 }: {
   attemptId: string;
   selectedOptionLabel: string;
