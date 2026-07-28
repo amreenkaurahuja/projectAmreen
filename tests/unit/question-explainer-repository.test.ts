@@ -37,6 +37,8 @@ function buildSupabase(overrides: {
   displayNameError?: unknown;
   attemptRow?: unknown;
   attemptError?: unknown;
+  questionPromptRow?: unknown;
+  questionPromptError?: unknown;
 }) {
   return {
     auth: {
@@ -93,6 +95,21 @@ function buildSupabase(overrides: {
                     ? FULL_ATTEMPT_ROW
                     : overrides.attemptRow,
                 error: overrides.attemptError ?? null,
+              })),
+            })),
+          })),
+        };
+      }
+      if (table === "question_bank") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({
+                data:
+                  overrides.questionPromptRow === undefined
+                    ? { prompt: "Find 75% of 40." }
+                    : overrides.questionPromptRow,
+                error: overrides.questionPromptError ?? null,
               })),
             })),
           })),
@@ -224,6 +241,33 @@ describe("SupabaseQuestionExplainerRepository.getExplanationSource", () => {
         learnerId: "learner-1",
         attemptId: "attempt-1",
       }),
+    ).rejects.toThrow(ExplainerRepositoryError);
+  });
+});
+
+describe("SupabaseQuestionExplainerRepository.getQuestionPromptById", () => {
+  it("returns the question's prompt text", async () => {
+    const repository = new SupabaseQuestionExplainerRepository(
+      buildSupabase({}) as never,
+    );
+    expect(await repository.getQuestionPromptById("question-2")).toBe(
+      "Find 75% of 40.",
+    );
+  });
+
+  it("returns null when the question row is missing", async () => {
+    const repository = new SupabaseQuestionExplainerRepository(
+      buildSupabase({ questionPromptRow: null }) as never,
+    );
+    expect(await repository.getQuestionPromptById("question-2")).toBeNull();
+  });
+
+  it("throws ExplainerRepositoryError on a database error", async () => {
+    const repository = new SupabaseQuestionExplainerRepository(
+      buildSupabase({ questionPromptError: { message: "boom" } }) as never,
+    );
+    await expect(
+      repository.getQuestionPromptById("question-2"),
     ).rejects.toThrow(ExplainerRepositoryError);
   });
 });

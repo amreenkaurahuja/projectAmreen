@@ -20,6 +20,7 @@ export const QuestionExplanationContextSchema: z.ZodType<QuestionExplanationCont
   z
     .object({
       schemaVersion: z.literal(EXPLANATION_CONTEXT_SCHEMA_VERSION),
+      promptVersion: z.string().min(1).max(40),
       audience: z.enum(AUDIENCES),
       learnerDisplayName: z.string().min(1).max(MAX_NAME_LENGTH),
       subject: z.string().min(1).max(MAX_NAME_LENGTH),
@@ -29,12 +30,23 @@ export const QuestionExplanationContextSchema: z.ZodType<QuestionExplanationCont
       correctAnswerLabel: z.string().min(1).max(MAX_TEXT_LENGTH),
       // Not .min(1): question_bank.explanation defaults to '' in the DB, and
       // an authored explanation genuinely being missing is a real, expected
-      // case the fallback builder handles (source: "generic"), not invalid.
+      // case the fallback builder handles, not invalid.
       authoredExplanation: z.string().max(MAX_EXPLANATION_LENGTH),
+      followUpAvailable: z.boolean(),
+      followUpQuestionPrompt: z.string().min(1).max(MAX_TEXT_LENGTH).optional(),
     })
-    .strict();
+    .strict()
+    .refine(
+      (context) =>
+        context.followUpAvailable ||
+        context.followUpQuestionPrompt === undefined,
+      {
+        message:
+          "followUpQuestionPrompt must be omitted when followUpAvailable is false",
+      },
+    );
 
-/** The one gate before a QuestionExplanationContext is used by anything downstream (fallback builder now; prompts/gateway from Stage 2). */
+/** The one gate before a QuestionExplanationContext is used by anything downstream (the fallback builder, or a prompt builder/gateway call from Stage 2 on). */
 export function validateQuestionExplanationContext(
   candidate: unknown,
 ): ValidationResult<QuestionExplanationContext> {

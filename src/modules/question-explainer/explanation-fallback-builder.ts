@@ -1,29 +1,36 @@
-import type { FollowUpQuestion } from "@/modules/adaptive-learning/follow-up-selector";
 import type {
-  DeterministicExplanation,
   QuestionExplanationContext,
   QuestionExplanationNextAction,
+  QuestionExplanationResponse,
 } from "./explainer.types";
 
 /**
  * Builds a full, useful explanation directly from the DTO — zero AI
- * involvement. Used for every Stage 1 request (there is no gateway yet) and,
- * from Stage 2, whenever AI is disabled or a provider/validation/grounding
- * failure occurs, matching the Coach's fallback-coach.ts precedent (Rule 9).
+ * involvement. Used whenever AI is disabled/unconfigured, over budget, or a
+ * provider/response-validation/grounding failure occurs (Rule 9, Rule 14) —
+ * and, until Stage 2 shipped, for every request unconditionally.
+ *
+ * Produces the same QuestionExplanationResponse shape a validated AI
+ * response does, so a caller never needs to know which path produced it
+ * (mirrors ai/coach/fallback-coach.ts's relationship to CoachResponse).
+ * Unlike the AI path, this never invents a genuinely different worked
+ * example — it cannot verify novel arithmetic is correct (see TDS-007's
+ * Stage 0 audit finding on worked-example risk), so its workedExample
+ * deliberately reuses the original question rather than fabricate a new
+ * one. That's a real, intentional difference from what a grounded AI
+ * response is allowed to do, not a shortcut.
  *
  * The authored explanation (question_bank.explanation) is never returned
- * unchanged — see TDS-007 Stage 1's fallback refinement: it's treated as
- * trusted source material and folded into the same five-part learner-facing
- * structure the AI will eventually produce, so the UI contract doesn't
- * change once AI is switched on.
+ * unchanged — it's treated as trusted source material and folded into the
+ * same structure the AI produces, so the UI contract doesn't change once
+ * AI is switched on.
  */
 export function buildDeterministicExplanation(
   context: QuestionExplanationContext,
-  followUp: FollowUpQuestion | null,
-): DeterministicExplanation {
+): QuestionExplanationResponse {
   return context.audience === "learner"
-    ? buildLearnerExplanation(context, followUp)
-    : buildParentExplanation(context, followUp);
+    ? buildLearnerExplanation(context)
+    : buildParentExplanation(context);
 }
 
 function hasAuthoredExplanation(context: QuestionExplanationContext): boolean {
@@ -31,62 +38,59 @@ function hasAuthoredExplanation(context: QuestionExplanationContext): boolean {
 }
 
 function buildNextAction(
-  followUp: FollowUpQuestion | null,
-  skill: string,
+  context: QuestionExplanationContext,
   linkedText: string,
   reviewText: string,
 ): QuestionExplanationNextAction {
-  return followUp
-    ? {
-        type: "linked-question",
-        text: linkedText,
-        questionId: followUp.questionId,
-      }
-    : { type: "review-skill", text: reviewText.replace("{skill}", skill) };
+  return context.followUpAvailable
+    ? { type: "linked-question", text: linkedText }
+    : { type: "review-skill", text: reviewText };
 }
 
 function buildLearnerExplanation(
   context: QuestionExplanationContext,
-  followUp: FollowUpQuestion | null,
-): DeterministicExplanation {
+): QuestionExplanationResponse {
   const authored = hasAuthoredExplanation(context);
 
   return {
     acknowledgement: "Good try — let's work through this one together.",
-    whatHappened: `You chose "${context.learnerAnswerLabel}". The correct answer is "${context.correctAnswerLabel}".`,
+    mistakeExplanation: `You chose "${context.learnerAnswerLabel}". The correct answer is "${context.correctAnswerLabel}".`,
     keyConcept: authored
       ? context.authoredExplanation
       : `This question is about ${context.skill}.`,
-    workedExplanation: `For this question, the correct answer is "${context.correctAnswerLabel}".`,
+    workedExample: {
+      problem: context.prompt,
+      steps: [`The correct answer is "${context.correctAnswerLabel}".`],
+      answer: context.correctAnswerLabel,
+    },
     nextAction: buildNextAction(
-      followUp,
-      context.skill,
+      context,
       `Try another question on ${context.skill}.`,
-      "Review {skill} again soon.",
+      `Review ${context.skill} again soon.`,
     ),
-    source: authored ? "authored" : "generic",
   };
 }
 
 function buildParentExplanation(
   context: QuestionExplanationContext,
-  followUp: FollowUpQuestion | null,
-): DeterministicExplanation {
+): QuestionExplanationResponse {
   const authored = hasAuthoredExplanation(context);
 
   return {
     acknowledgement: `${context.learnerDisplayName} gave this one a good try.`,
-    whatHappened: `${context.learnerDisplayName} selected "${context.learnerAnswerLabel}" for a ${context.skill} question; the correct answer was "${context.correctAnswerLabel}".`,
+    mistakeExplanation: `${context.learnerDisplayName} selected "${context.learnerAnswerLabel}" for a ${context.skill} question; the correct answer was "${context.correctAnswerLabel}".`,
     keyConcept: authored
       ? context.authoredExplanation
       : `This question covers ${context.skill} in ${context.subject}.`,
-    workedExplanation: `The correct answer to this question is "${context.correctAnswerLabel}".`,
+    workedExample: {
+      problem: context.prompt,
+      steps: [`The correct answer is "${context.correctAnswerLabel}".`],
+      answer: context.correctAnswerLabel,
+    },
     nextAction: buildNextAction(
-      followUp,
-      context.skill,
+      context,
       `A follow-up question on ${context.skill} is ready to try.`,
-      "Consider revisiting {skill} together soon.",
+      `Consider revisiting ${context.skill} together soon.`,
     ),
-    source: authored ? "authored" : "generic",
   };
 }
