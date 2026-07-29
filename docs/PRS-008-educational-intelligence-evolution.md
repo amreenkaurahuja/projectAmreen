@@ -73,7 +73,7 @@ Signals
    ↓
 Educational Interpretation
    ↓
-Candidate Educational Policies
+Candidate Educational Interventions
    ↓
 Educational Sequencing
 (arbitration + planning horizon)
