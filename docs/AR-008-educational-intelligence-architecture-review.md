@@ -382,6 +382,8 @@ Presentation must follow the educational decision, not determine it.
 
 ## 12. Architectural Invariants
 
+The following architectural invariants emerge from the accepted responsibility allocations in Section 6 and apply across the Educational Intelligence Core as a whole.
+
 The following invariants are accepted for Release 0.8:
 
 1. Educational Interpretation owns educational meaning.
