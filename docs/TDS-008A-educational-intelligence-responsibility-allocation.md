@@ -427,7 +427,7 @@ Every behaviour explicitly owned by a responsibility contract in Sections 4–6 
 | Behaviour                                                                | Educational Interpretation | Educational Policy | Educational Sequencing |
 | ------------------------------------------------------------------------ | :------------------------: | :----------------: | :--------------------: |
 | Derive educational meaning                                               |             ✓              |                    |                        |
-| Classify learner state                                                   |             ✓              |                    |                        |
+| Classify educational state                                               |             ✓              |                    |                        |
 | Interpret educational signals                                            |             ✓              |                    |                        |
 | Produce Educational Interpretation                                       |             ✓              |                    |                        |
 | Determine intervention eligibility                                       |                            |         ✓          |                        |
