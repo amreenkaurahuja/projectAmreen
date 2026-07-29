@@ -108,7 +108,7 @@ The Educational Intelligence Core concludes at the production of an authoritativ
 
 ## Open Product Questions
 
-Release 0.8 intentionally leaves the following questions to architectural and technical design.
+Release 0.8 intentionally leaves the following questions for architectural evaluation and technical design.
 
 1. Which educational interpretations should become reusable concepts?
 2. How should competing candidate interventions be reconciled?
