@@ -367,7 +367,7 @@ A behaviour has leaked from Sequencing into Interpretation when Sequencing:
 - reclassifies learner state;
 - invents an interpretation to justify its decision.
 
-Sequencing may consume interpretations and candidate interventions. It must not recreate them.
+Educational Sequencing consumes candidate educational interventions, including any educational rationale, priority and policy-specific constraints carried within the candidate intervention contract. It shall not independently derive, recreate or directly consume Educational Interpretation.
 
 ### 11.4 Representation leakage
 
